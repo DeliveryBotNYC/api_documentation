@@ -1,82 +1,480 @@
-openapi: 3.0.2
-servers:
-  - url: https://api.dbx.delivery
+openapi: 3.1.0
+x-stoplight:
+  id: stn6w4lxge3jr
 info:
-  description: Manage, create, update, and cancel orders
-  version: "2.1"
   title: Delivery Bot Retail API
-  termsOfService: "http://dbx.delivery/terms/"
+  version: "2.0"
+  summary: "Manage, create, update, and cancel orders"
+  description: ""
   contact:
     email: webmaster@dbx.delivery
+    name: Delivery Bot Support
+    url: "http://dbx.delivery"
+  termsOfService: "http://dbx.delivery/terms"
+servers:
+  - url: "https://api.dbx.delivery"
+    description: Production
 tags:
   - name: orders
     description: Everything about orders
 paths:
   /quote:
+    parameters: []
     post:
       tags:
         - orders
       summary: Create a quote
-      description: Create a quote for a new delivery.
-      operationId: postQuote
+      operationId: post-quote
+      responses:
+        "200":
+          description: Returns quote for delivery
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price:
+                    type: integer
+                x-examples:
+                  Example 1:
+                    price: 1099
+              examples:
+                Example 1:
+                  value:
+                    price: 1099
+        "422":
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalid_timeframe:
+                  value:
+                    code: invalid_timeframe
+                    message: start_time and end_time must be 2 hours or same-day (2PM-7PM).
+      x-stoplight:
+        id: dp4zci1oa4yhg
+      description: Retrieve a price quote for a new delivery.
       requestBody:
-        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Quote"
+            examples:
+              Simple ASAP quote:
+                $ref: "#/components/examples/asap-quote"
+              Quote with time-frame:
+                $ref: "#/components/examples/timeframe-quote"
+  /order:
+    post:
+      tags:
+        - orders
+      summary: Create an order
+      operationId: post-order
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: owbl4tlkoe147
+      requestBody:
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/Order"
-
+            examples:
+              Simple ASAP order:
+                $ref: "#/components/examples/asap-order"
 components:
   schemas:
-    Order:
+    Quote:
+      type: object
+      x-stoplight:
+        id: 5fc52f4bba308
+      x-examples:
+        Example 1:
+          timeframe:
+            by: user
+            service: 2_hour
+            start_time: "2023-11-22T22:00:00Z"
+            end_time: "2023-11-22T22:00:00Z"
+          items:
+            - quantity: 3
+              type: 1-hander
+            - quantity: 1
+              type: box
+          pickup:
+            location:
+              street: 400 East 74 Street
+              apt: "301"
+              city: New York
+              zip: "10012"
+              state: NY
+              lat: 400.735073
+              lon: -73.994431
+          delivery:
+            location:
+              street: 400 East 74 Street
+              apt: "301"
+              city: New York
+              zip: "10012"
+              state: NY
+              lat: 40.735073
+              lon: -73.994431
       properties:
-        external_order_id:
-          type: string
-          example: diu2hi2
-        tip:
-          type: integer
-          format: int64
-          example: 200
-          description: In cents
         timeframe:
           $ref: "#/components/schemas/Timeframe"
         items:
-          $ref: "#/components/schemas/Item"
-
-    Timeframe:
+          $ref: "#/components/schemas/Items"
+        pickup:
+          type: object
+          properties:
+            location:
+              $ref: "#/components/schemas/Location"
+              x-stoplight:
+                id: f7a666bd0re01
+        delivery:
+          type: object
+          properties:
+            location:
+              $ref: "#/components/schemas/Location"
+              x-stoplight:
+                id: 7y14v8bzpew5v
+    Order:
+      type: object
+      x-examples:
+        Example 1:
+          external_order_id: diu2hi2
+          tip: "3.99"
+          timeframe:
+            service: timeframe
+            request: pickup
+            start_time: "2023-06-25T15:00:00.000Z"
+            end_time: "2023-06-26T00:00:00.000Z"
+          items:
+            - quantity: 2
+              type: box
+          products:
+            - id: 2
+              name: box
+              description: box
+          pickup:
+            name: John Sloko
+            phone: (917) 573-7687
+            note: This is pickup note
+            location:
+              access_code: "*3948#"
+              street_address_1: 400 East 74th Street
+              street_address_2: "301"
+              city: NY
+              zip: "10012"
+              state: NY
+            required_verification:
+              barocde:
+                value: hFu9a0dE
+                type: QR
+              picture: true
+          delivery:
+            name: John Sloko
+            phone: (917) 573-7687
+            note: This is a delivery note
+            location:
+              access_code: "*3948#"
+              street_address_1: 400 East 74th Street
+              street_address_2: "301"
+              city: NY
+              zip: "10012"
+              state: NY
+            required_verification:
+              barocde:
+                value: hFu9a0dE
+                type: QR
+              picture: true
+              recipient: false
+              signature: false
+              pin: true
+              identification:
+                min_age: 21
       properties:
-        service:
+        external_order_id:
           type: string
-          example: timeframe
-          enum:
-            - sameday
-            - timeframe
-        request:
+        tip:
           type: string
-          example: pickup
+        timeframe:
+          $ref: "#/components/schemas/Timeframe"
+        items:
+          $ref: "#/components/schemas/Items"
+        products:
+          $ref: "#/components/schemas/Products"
+        pickup:
+          type: object
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            note:
+              type: string
+            location:
+              $ref: "#/components/schemas/Location"
+            required_verification:
+              type: object
+              properties:
+                barocde:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    type:
+                      type: string
+                picture:
+                  type: boolean
+        delivery:
+          type: object
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            note:
+              type: string
+            location:
+              $ref: "#/components/schemas/Location"
+            required_verification:
+              type: object
+              properties:
+                barocde:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                    type:
+                      type: string
+                picture:
+                  type: boolean
+                recipient:
+                  type: boolean
+                signature:
+                  type: boolean
+                pin:
+                  type: boolean
+                identification:
+                  type: object
+                  properties:
+                    min_age:
+                      type: integer
+    Timeframe:
+      type: object
+      x-examples:
+        Example 1:
+          by: user
+          service: 2_hour
+          start_time: "2023-11-22T22:00:00Z"
+          end_time: "2023-11-22T22:00:00Z"
+      properties:
+        by:
           enum:
+            - user
             - pickup
             - delivery
+        service:
+          enum:
+            - 2_hour
+            - same_day
         start_time:
           type: string
           format: date-time
-          example: 2023-06-25T15:00:00.000Z
         end_time:
           type: string
           format: date-time
-          example: 2023-06-25T15:00:00.000Z
-
-    Item:
+    Items:
+      type: array
+      x-examples:
+        Example 1:
+          items:
+            - quantity: 3
+              type: 1-hander
+            - quantity: 1
+              type: box
+      items:
+        x-stoplight:
+          id: ejq7xqvxutjtm
+        type: object
+        properties:
+          quantity:
+            type: integer
+            x-stoplight:
+              id: oifl8z4qnnwch
+          type:
+            type: string
+            x-stoplight:
+              id: 3qyqwi1nx5qvj
+    Products:
+      type: array
+      x-stoplight:
+        id: ohol2jc2517dp
+      x-examples:
+        Example 1:
+          items:
+            - quantity: 3
+              type: 1-hander
+            - quantity: 1
+              type: box
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+            x-stoplight:
+              id: 5kedyrtbctrip
+          name:
+            type: string
+            x-stoplight:
+              id: bbezcgklg8al0
+          description:
+            type: string
+            x-stoplight:
+              id: pfm6lds485qbn
+    Location:
+      type: object
       properties:
-        quantity:
-          type: integer
-          format: int64
-          example: 2
-        type:
+        access_code:
           type: string
-          example: box
-          enum:
-            - box
-            - bag
-            - 1-hander
-            - 2-hander
+        street_address_1:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        zip:
+          type: string
+        state:
+          type: string
+      x-examples:
+        Example 1:
+          access_code: "*3948#"
+          street_address_1: 400 East 74th Street
+          street_address_2: "301"
+          city: NY
+          zip: "10012"
+          state: NY
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      x-examples:
+        Example 1:
+          code: order_not_found
+          message: "Order_id: 0 not found"
+  securitySchemes:
+    API Key:
+      name: apiKey
+      type: apiKey
+      in: query
+  requestBodies: {}
+  examples:
+    asap-quote:
+      value:
+        items:
+          - quantity: 3
+            type: 1-hander
+          - quantity: 1
+            type: box
+        pickup:
+          location:
+            street: 400 East 74 Street
+            apt: "301"
+            city: New York
+            zip: "10012"
+            state: NY
+        delivery:
+          location:
+            street: 400 East 74 Street
+            apt: "301"
+            city: New York
+            zip: "10012"
+            state: NY
+    timeframe-quote:
+      value:
+        timeframe:
+          by: user
+          service: 2_hour
+          start_time: "2023-11-22T22:00:00Z"
+          end_time: "2023-11-22T22:00:00Z"
+        items:
+          - quantity: 3
+            type: 1-hander
+          - quantity: 1
+            type: box
+        pickup:
+          location:
+            street: 400 East 74 Street
+            apt: "301"
+            city: New York
+            zip: "10012"
+            state: NY
+        delivery:
+          location:
+            street: 400 East 74 Street
+            apt: "301"
+            city: New York
+            zip: "10012"
+            state: NY
+    asap-order:
+      value:
+        external_order_id: diu2hi2
+        tip: "3.99"
+        timeframe:
+          service: timeframe
+          request: pickup
+          start_time: "2023-06-25T15:00:00.000Z"
+          end_time: "2023-06-26T00:00:00.000Z"
+        items:
+          - quantity: 2
+            type: box
+        products:
+          - id: 2
+            name: box
+            description: box
+        pickup:
+          name: John Sloko
+          phone: (917) 573-7687
+          note: This is pickup note
+          location:
+            access_code: "*3948#"
+            street_address_1: 400 East 74th Street
+            street_address_2: "301"
+            city: NY
+            zip: "10012"
+            state: NY
+          required_verification:
+            barocde:
+              value: hFu9a0dE
+              type: QR
+            picture: true
+        delivery:
+          name: John Sloko
+          phone: (917) 573-7687
+          note: This is a delivery note
+          location:
+            access_code: "*3948#"
+            street_address_1: 400 East 74th Street
+            street_address_2: "301"
+            city: NY
+            zip: "10012"
+            state: NY
+          required_verification:
+            barocde:
+              value: hFu9a0dE
+              type: QR
+            picture: true
+            recipient: false
+            signature: false
+            pin: true
+            identification:
+              min_age: 21
+security:
+  - API Key: []
