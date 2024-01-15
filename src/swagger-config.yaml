@@ -1,0 +1,82 @@
+openapi: 3.0.2
+servers:
+  - url: https://api.dbx.delivery
+info:
+  description: Manage, create, update, and cancel orders
+  version: "2.1"
+  title: Delivery Bot Retail API
+  termsOfService: "http://dbx.delivery/terms/"
+  contact:
+    email: webmaster@dbx.delivery
+tags:
+  - name: orders
+    description: Everything about orders
+paths:
+  /quote:
+    post:
+      tags:
+        - orders
+      summary: Create a quote
+      description: Create a quote for a new delivery.
+      operationId: postQuote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+
+components:
+  schemas:
+    Order:
+      properties:
+        external_order_id:
+          type: string
+          example: diu2hi2
+        tip:
+          type: integer
+          format: int64
+          example: 200
+          description: In cents
+        timeframe:
+          $ref: "#/components/schemas/Timeframe"
+        items:
+          $ref: "#/components/schemas/Item"
+
+    Timeframe:
+      properties:
+        service:
+          type: string
+          example: timeframe
+          enum:
+            - sameday
+            - timeframe
+        request:
+          type: string
+          example: pickup
+          enum:
+            - pickup
+            - delivery
+        start_time:
+          type: string
+          format: date-time
+          example: 2023-06-25T15:00:00.000Z
+        end_time:
+          type: string
+          format: date-time
+          example: 2023-06-25T15:00:00.000Z
+
+    Item:
+      properties:
+        quantity:
+          type: integer
+          format: int64
+          example: 2
+        type:
+          type: string
+          example: box
+          enum:
+            - box
+            - bag
+            - 1-hander
+            - 2-hander
