@@ -1,6 +1,6 @@
 openapi: 3.1.0
 x-stoplight:
-  id: stn6w4lxge3jr
+  id: i678uw09rfprb
 info:
   title: Delivery Bot Retail API
   version: "2.0"
@@ -17,6 +17,8 @@ servers:
 tags:
   - name: orders
     description: Everything about orders
+  - name: slots
+    description: Get time slots available
 paths:
   /quote:
     parameters: []
@@ -39,23 +41,15 @@ paths:
                   Example 1:
                     price: 1099
               examples:
-                Example 1:
-                  value:
-                    price: 1099
+                "":
+                  $ref: "#/components/examples/timeframe-order"
+        "403":
+          $ref: "#/components/responses/Autherizarion-Failed"
         "422":
-          description: Unprocessable Entity
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                invalid_timeframe:
-                  value:
-                    code: invalid_timeframe
-                    message: start_time and end_time must be 2 hours or same-day (2PM-7PM).
+          $ref: "#/components/responses/Invalid-Parameters"
       x-stoplight:
-        id: dp4zci1oa4yhg
-      description: Retrieve a price quote for a new delivery.
+        id: jqjlq3tzaiego
+      description: "Validates if the order (delivery time, pick up address, delivery address, etc) is servicable by Delivery Bot and return a quote. Quoted price will not change and will be the same regardless of when you place the order."
       requestBody:
         content:
           application/json:
@@ -75,8 +69,12 @@ paths:
       responses:
         "200":
           description: OK
+        "403":
+          $ref: "#/components/responses/Autherizarion-Failed"
+        "422":
+          $ref: "#/components/responses/Invalid-Parameters"
       x-stoplight:
-        id: owbl4tlkoe147
+        id: afk6y335dt0ej
       requestBody:
         content:
           application/json:
@@ -85,12 +83,188 @@ paths:
             examples:
               Simple ASAP order:
                 $ref: "#/components/examples/asap-order"
+      description: Creates a new delivery between two addresses.
+  "/order/{order_id}":
+    get:
+      tags:
+        - orders
+      summary: Get an order
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  $ref: "#/components/examples/timeframe-order"
+        "403":
+          $ref: "#/components/responses/Autherizarion-Failed"
+        "404":
+          $ref: "#/components/responses/Not-Found"
+      operationId: get-order
+      x-stoplight:
+        id: 2gs3729fxzzvb
+      description: "Get existing order details and status, specified by the order_id in the URL."
+    parameters:
+      - schema:
+          type: string
+        name: order_id
+        in: path
+        required: true
+        description: order id of the delivery
+    patch:
+      tags:
+        - orders
+      summary: Modify an Order
+      operationId: patch-order-order_id
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  $ref: "#/components/examples/timeframe-order"
+        "403":
+          $ref: "#/components/responses/Autherizarion-Failed"
+        "404":
+          $ref: "#/components/responses/Not-Found"
+      x-stoplight:
+        id: v2x65gzpk70h6
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+            examples:
+              Modify timeframe:
+                value:
+                  timeframe:
+                    service: 2_hour
+                    start_time: "2019-08-24T14:15:22Z"
+                    end_time: "2019-08-24T14:15:22Z"
+              Modify delivery location:
+                value:
+                  delivery:
+                    name: string
+                    phone: string
+                    note: string
+                    location:
+                      access_code: string
+                      street_address_1: string
+                      street_address_2: string
+                      city: string
+                      zip: string
+                      state: string
+      description: "Modify an existing delivery, specified by the order_id in the URL. Please refrence our guide regarding allowed updates based on order status."
+    put:
+      tags:
+        - orders
+      summary: Cancel an Order
+      operationId: put-order-order_id
+      responses:
+        "200":
+          description: OK
+        "403":
+          $ref: "#/components/responses/Autherizarion-Failed"
+        "404":
+          $ref: "#/components/responses/Not-Found"
+      x-stoplight:
+        id: n0057whe8n28l
+      description: "Cancel an ongoing or previously placed order, specified by the order_id in the URL."
+  /slots:
+    parameters: []
+    post:
+      tags:
+        - slots
+      summary: Get time slots
+      operationId: post-slots
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+              examples:
+                "":
+                  value:
+                    available_slots:
+                      - start_time: "2022-01-18T17:00:00.000+02:00"
+                        end_time: "2022-01-18T18:00:00.000+02:00"
+                        type: 1_hour
+                      - start_time: "2022-01-18T17:00:00.000+02:00"
+                        end_time: "2022-01-18T19:00:00.000+02:00"
+                        type: 2_hour
+      x-stoplight:
+        id: p8yoc6gz1os65
+      description: Returns time slots available between two addresses and specified restrictions.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Quote"
+            examples:
+              ASAP slots for today:
+                value:
+                  restrictions: {}
+                  items:
+                    - quantity: 3
+                      type: 1-hander
+                    - quantity: 1
+                      type: box
+                  pickup:
+                    location:
+                      street: 400 East 74 Street
+                      apt: "301"
+                      city: New York
+                      zip: "10012"
+                      state: NY
+                  delivery:
+                    location:
+                      street: 400 East 74 Street
+                      apt: "301"
+                      city: New York
+                      zip: "10012"
+                      state: NY
+              Restricted type and dates:
+                value:
+                  restrictions:
+                    1_hour: false
+                    2_hour: false
+                    same_day: true
+                    start_time: "2022-01-18T21:00:00.000+02:00"
+                    end_time: "2022-01-18T21:00:00.000+02:00"
+                  items:
+                    - quantity: 3
+                      type: 1-hander
+                    - quantity: 1
+                      type: box
+                  pickup:
+                    location:
+                      street: 400 East 74 Street
+                      apt: "301"
+                      city: New York
+                      zip: "10012"
+                      state: NY
+                  delivery:
+                    location:
+                      street: 400 East 74 Street
+                      apt: "301"
+                      city: New York
+                      zip: "10012"
+                      state: NY
 components:
   schemas:
     Quote:
       type: object
       x-stoplight:
-        id: 5fc52f4bba308
+        id: dvb1yui6kazjm
       x-examples:
         Example 1:
           timeframe:
@@ -132,14 +306,14 @@ components:
             location:
               $ref: "#/components/schemas/Location"
               x-stoplight:
-                id: f7a666bd0re01
+                id: xgnx2ikbygxfv
         delivery:
           type: object
           properties:
             location:
               $ref: "#/components/schemas/Location"
               x-stoplight:
-                id: 7y14v8bzpew5v
+                id: mthfbxhwe4u0t
     Order:
       type: object
       x-examples:
@@ -298,21 +472,21 @@ components:
               type: box
       items:
         x-stoplight:
-          id: ejq7xqvxutjtm
+          id: 2a30i1yy1ckp1
         type: object
         properties:
           quantity:
             type: integer
             x-stoplight:
-              id: oifl8z4qnnwch
+              id: 9klk5lmzda24i
           type:
             type: string
             x-stoplight:
-              id: 3qyqwi1nx5qvj
+              id: 9eb5dluuxqdre
     Products:
       type: array
       x-stoplight:
-        id: ohol2jc2517dp
+        id: nnppasq8ecxzg
       x-examples:
         Example 1:
           items:
@@ -326,15 +500,15 @@ components:
           id:
             type: integer
             x-stoplight:
-              id: 5kedyrtbctrip
+              id: i6t53vtcqa0ug
           name:
             type: string
             x-stoplight:
-              id: bbezcgklg8al0
+              id: 5xpc3ok81uri2
           description:
             type: string
             x-stoplight:
-              id: pfm6lds485qbn
+              id: hkj2wx2k8rkba
     Location:
       type: object
       properties:
@@ -358,17 +532,6 @@ components:
           city: NY
           zip: "10012"
           state: NY
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-      x-examples:
-        Example 1:
-          code: order_not_found
-          message: "Order_id: 0 not found"
   securitySchemes:
     API Key:
       name: apiKey
@@ -400,10 +563,9 @@ components:
     timeframe-quote:
       value:
         timeframe:
-          by: user
           service: 2_hour
-          start_time: "2023-11-22T22:00:00Z"
-          end_time: "2023-11-22T22:00:00Z"
+          start_time: "2023-11-22T22:10:00Z"
+          end_time: "2023-11-22T22:12:00Z"
         items:
           - quantity: 3
             type: 1-hander
@@ -427,9 +589,56 @@ components:
       value:
         external_order_id: diu2hi2
         tip: "3.99"
+        items:
+          - quantity: 2
+            type: box
+        products:
+          - id: 2
+            name: box
+            description: box
+        pickup:
+          name: John Sloko
+          phone: (917) 573-7687
+          note: This is pickup note
+          location:
+            access_code: "*3948#"
+            street_address_1: 400 East 74th Street
+            street_address_2: "301"
+            city: NY
+            zip: "10012"
+            state: NY
+          required_verification:
+            barocde:
+              value: hFu9a0dE
+              type: QR
+            picture: true
+        delivery:
+          name: John Sloko
+          phone: (917) 573-7687
+          note: This is a delivery note
+          location:
+            access_code: "*3948#"
+            street_address_1: 400 East 74th Street
+            street_address_2: "301"
+            city: NY
+            zip: "10012"
+            state: NY
+          required_verification:
+            barocde:
+              value: hFu9a0dE
+              type: QR
+            picture: true
+            recipient: false
+            signature: false
+            pin: true
+            identification:
+              min_age: 21
+    timeframe-order:
+      value:
+        external_order_id: diu2hi2
+        tip: "3.99"
         timeframe:
-          service: timeframe
-          request: pickup
+          service: 2_hour
           start_time: "2023-06-25T15:00:00.000Z"
           end_time: "2023-06-26T00:00:00.000Z"
         items:
@@ -476,5 +685,122 @@ components:
             pin: true
             identification:
               min_age: 21
+  responses:
+    Not-Found:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+              error:
+                type: string
+              messege:
+                type: string
+            x-examples:
+              Example 1:
+                code: invalid_delivery_parameters
+                error: outside_of_delivery_time.
+                messege: Ready by time outside of delivery hours.
+          examples:
+            "":
+              value:
+                code: not_found
+                error: order_not_found
+                message: "Order_id: 0 not found"
+    Invalid-Parameters:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              Example 1:
+                code: invalid_params
+                message: One or more fields couldn't be validated.
+                field_error:
+                  - field: deliver_to
+                    error: Invalid deliver to value.
+                  - field: name
+                    error: Minimum character length for  name is 2.
+                  - field: phone
+                    error: "Invalid phone number format. Required format: “+xxxxxxxxxx“."
+                  - field: item2
+                    error: "Invalid item value. Allowed items: “box”, “heavy-box”, “large-box”, “1-hander”, “2-hander”, “plant”, “bag”, “letter”, “garment”, “other”."
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              field_error:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    error:
+                      type: string
+          examples:
+            "":
+              value:
+                code: invalid_params
+                message: One or more fields couldn't be validated.
+                field_error:
+                  - field: name
+                    error: Minimum character length for  name is 2.
+                  - field: phone
+                    error: "Invalid phone number format. Required format: “+xxxxxxxxxx“."
+    Unprocessable-Entity:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+              error:
+                type: string
+              messege:
+                type: string
+            x-examples:
+              Example 1:
+                code: invalid_delivery_parameters
+                error: outside_of_delivery_zone
+                messege: Address outside of delivery zone.
+          examples:
+            Invalid Timeframe:
+              value:
+                code: invalid_parameters
+                error: invalid_timeframe
+                title: start_time and end_time must be 2 hours or same-day (2PM-7PM).
+            Outside delivery zone:
+              value:
+                code: invalid_parameters
+                error: outside_of_delivery_zone
+                messege: Address outside of delivery zone.
+    Autherizarion-Failed:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            x-examples:
+              Example 1:
+                code: authorization_failed
+                message: Invalid authorization token.
+          examples:
+            "":
+              value:
+                code: authorization_failed
+                message: Invalid authorization token.
 security:
   - API Key: []
