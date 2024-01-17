@@ -2,15 +2,17 @@ openapi: 3.1.0
 x-stoplight:
   id: zbwhteau3ge4w
 info:
-  title: Delivery Bot Retail API
+  title: Delivery Bot API
   version: "2.0"
-  description: Welcome to Delivery Bot API!<br /><br />This platform allows users to intergration your aplication and website with Delivery Bot's courier network. Wether you need your orders delivered ASAP and through a customer selected time-frame you can now easily automate the process of placing your orders.<br /><br />This developer tool provides you with the necasary documentation, examples, and resources to assist you in creating, managing, and monitoring deliveries.<br /><br />[Postman](https://www.postman.com/deliverybot/workspace/deliver-bot-retail-api/overview)<br />[Github Examples](http://commonmark.org/help/)
+  description: Welcome to Delivery Bot API!<br /><br />This platform allows users to intergration your aplication and website with Delivery Bot's courier network. Wether you need your orders delivered ASAP and through a customer selected time-frame you can now easily automate the process of placing your orders.<br /><br />This developer tool provides you with the necasary documentation, examples, and resources to assist you in creating, managing, and monitoring deliveries.<br /><br />[Postman](https://www.postman.com/deliverybot/workspace/deliver-bot-retail-api/overview)<br />[Github Examples](https://github.com/DeliveryBotNYC/api_documentation)<br />[FAQ](http://dbx.delivery)
   contact:
     email: webmaster@dbx.delivery
-    name: Delivery Bot FAQ
-    url: "https://dbx.delivery/#contact_us"
+    name: Delivery Bot Support
+    url:
   termsOfService: "http://dbx.delivery/terms"
 servers:
+  - url: "https://sandbox-api.dbx.delivery"
+    description: Development
   - url: "https://api.dbx.delivery"
     description: Production
 tags:
