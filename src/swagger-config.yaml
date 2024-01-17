@@ -1,6 +1,6 @@
 openapi: 3.1.0
 x-stoplight:
-  id: i678uw09rfprb
+  id: zbwhteau3ge4w
 info:
   title: Delivery Bot Retail API
   version: "2.0"
@@ -16,9 +16,11 @@ servers:
     description: Production
 tags:
   - name: orders
-    description: Everything about orders
+    description: Manage your orders
   - name: slots
-    description: Get time slots available
+    description: Retrieve available time slots
+  - name: webhooks
+    description: All webhooks are sent to a single url and defined by event property
 paths:
   /quote:
     parameters: []
@@ -48,7 +50,7 @@ paths:
         "422":
           $ref: "#/components/responses/Invalid-Parameters"
       x-stoplight:
-        id: jqjlq3tzaiego
+        id: cygorwi9b71ob
       description: "Validates if the order (delivery time, pick up address, delivery address, etc) is servicable by Delivery Bot and return a quote. Quoted price will not change and will be the same regardless of when you place the order."
       requestBody:
         content:
@@ -74,7 +76,7 @@ paths:
         "422":
           $ref: "#/components/responses/Invalid-Parameters"
       x-stoplight:
-        id: afk6y335dt0ej
+        id: 51klmz4lzce8c
       requestBody:
         content:
           application/json:
@@ -105,7 +107,7 @@ paths:
           $ref: "#/components/responses/Not-Found"
       operationId: get-order
       x-stoplight:
-        id: 2gs3729fxzzvb
+        id: hzvs71uuvgwsr
       description: "Get existing order details and status, specified by the order_id in the URL."
     parameters:
       - schema:
@@ -134,7 +136,7 @@ paths:
         "404":
           $ref: "#/components/responses/Not-Found"
       x-stoplight:
-        id: v2x65gzpk70h6
+        id: xjtglb2b0za5c
       requestBody:
         content:
           application/json:
@@ -174,7 +176,7 @@ paths:
         "404":
           $ref: "#/components/responses/Not-Found"
       x-stoplight:
-        id: n0057whe8n28l
+        id: xfd9xdbqimkh7
       description: "Cancel an ongoing or previously placed order, specified by the order_id in the URL."
   /slots:
     parameters: []
@@ -202,7 +204,7 @@ paths:
                         end_time: "2022-01-18T19:00:00.000+02:00"
                         type: 2_hour
       x-stoplight:
-        id: p8yoc6gz1os65
+        id: hghucg6tnnq84
       description: Returns time slots available between two addresses and specified restrictions.
       requestBody:
         content:
@@ -259,12 +261,84 @@ paths:
                       city: New York
                       zip: "10012"
                       state: NY
+  order_assigned:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Order assigned
+      operationId: postorder_assigned
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: 20o9hi5mxgsy5
+  courier_at_pickup:
+    post:
+      tags:
+        - webhooks
+      summary: Courier at pickup location
+      operationId: post-courier_at_pickup
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: xocda2zhvmfd0
+    parameters: []
+  order_picked_up:
+    post:
+      tags:
+        - webhooks
+      summary: Order picked-up
+      operationId: post-order_picked_up
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: m0p2mh22eqv5v
+    parameters: []
+  courier_at_delivery:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Courier at delivery location
+      operationId: postcourier_at_delivery
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: nw7kyy87tx1yr
+  order_delivered:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Order delivered
+      operationId: postorder_delivered
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: 2qctu2kaxwvo9
+  order_cancelled:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Order cancelled
+      operationId: postorder_cancelled
+      responses:
+        "200":
+          description: OK
+      x-stoplight:
+        id: l4qmhparo81cg
 components:
   schemas:
     Quote:
       type: object
       x-stoplight:
-        id: dvb1yui6kazjm
+        id: 5akiyb98eijz3
       x-examples:
         Example 1:
           timeframe:
@@ -306,14 +380,14 @@ components:
             location:
               $ref: "#/components/schemas/Location"
               x-stoplight:
-                id: xgnx2ikbygxfv
+                id: 9xvl4k6ylmdlp
         delivery:
           type: object
           properties:
             location:
               $ref: "#/components/schemas/Location"
               x-stoplight:
-                id: mthfbxhwe4u0t
+                id: b6qmyv1j84ije
     Order:
       type: object
       x-examples:
@@ -472,21 +546,21 @@ components:
               type: box
       items:
         x-stoplight:
-          id: 2a30i1yy1ckp1
+          id: rnog775m8v7ef
         type: object
         properties:
           quantity:
             type: integer
             x-stoplight:
-              id: 9klk5lmzda24i
+              id: h3m3o9j901eff
           type:
             type: string
             x-stoplight:
-              id: 9eb5dluuxqdre
+              id: 1fhl20x5y5dj3
     Products:
       type: array
       x-stoplight:
-        id: nnppasq8ecxzg
+        id: zbfsnewt7gsk0
       x-examples:
         Example 1:
           items:
@@ -500,15 +574,15 @@ components:
           id:
             type: integer
             x-stoplight:
-              id: i6t53vtcqa0ug
+              id: o7d65ha1fdog8
           name:
             type: string
             x-stoplight:
-              id: 5xpc3ok81uri2
+              id: 8i2rqvakldck3
           description:
             type: string
             x-stoplight:
-              id: hkj2wx2k8rkba
+              id: sui0wkx1cgltz
     Location:
       type: object
       properties:
