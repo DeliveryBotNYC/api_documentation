@@ -1,6 +1,7 @@
 {
-  "name": "f",
-  "version": "0.1.0",
+  "name": "api_documentation",
+  "homepage": "/api",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
