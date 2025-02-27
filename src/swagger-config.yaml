@@ -434,66 +434,602 @@ paths:
                     address:
                       street: 400 E 74 St
                       zip: "10021"
-  /order_assigned:
+  /order.processing:
     parameters: []
     post:
       tags:
         - webhooks
-      summary: Order assigned
-      operationId: postorder_assigned
+      summary: Order processing
+      operationId: order.processing
       responses:
         "200":
           description: OK
-  /courier_at_pickup:
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      event:
+                        type: string
+                        x-stoplight:
+                          id: nd1jvyz0t57rt
+                  - $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  value:
+                    event: order.processing
+                    order_id: SEWG5J
+                    external_order_id: null
+                    status: processing
+                    pickup:
+                      customer_id: 1
+                      phone: 1234567890
+                      name: West Side Wines
+                      apt: "1"
+                      external_customer_id: null
+                      phone_formatted: (123) 456-7890
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 783607
+                        formatted: "1305 York Ave, New York, NY 10021"
+                        street: 1305 York Ave
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7654
+                        lon: -73.9551
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: true
+                      uploaded_verification:
+                        picture: {}
+                    delivery:
+                      customer_id: 2
+                      phone: 2147483647
+                      name: Olivia Thompson
+                      apt: ""
+                      external_customer_id: null
+                      phone_formatted: (214) 748-3647
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 863611
+                        formatted: "300 E 71 St, New York, NY 10021"
+                        street: 300 E 71st St
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7679
+                        lon: -73.9585
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: false
+                        recipient: false
+                        signature: false
+                      uploaded_verification:
+                        picture: {}
+                        recipient: {}
+                        signature: {}
+                      items:
+                        max_weight: 100
+                        max_dimension: 25
+                        total_quantity: 1
+                        total_weight: 100
+                        cubic_feet: 0.93
+                        exact: true
+                        size: large
+                        description: Fits in car trunk
+                        additional: 3000
+                        items:
+                          - description: keg
+                            quantity: 1
+                            length: 8
+                            width: 8
+                            height: 25
+                            weight: 100
+                            measurement: 100lbs | 8” x 8” x 25”
+                            size: large
+                    timeframe:
+                      service: 3-hour
+                      start_time: "2025-01-27T15:00:00.000Z"
+                      end_time: "2025-01-27T18:00:00.000Z"
+                    created_at: "2025-01-27T15:00:00.000Z"
+                    last_updated: "2025-01-27T15:00:00.000Z"
+                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    price: 7
+                    tip: 300
+                    driver: {}
+                    logs:
+                      - log_id: 2
+                        log: arrived_at_delivery
+                        by: driver
+                        datetime: "2025-01-27T15:55:00.000Z"
+                        is_completed: true
+                      - log_id: 1
+                        log: arrived_at_pickup
+                        by: driver
+                        datetime: "2025-01-27T15:12:00.000Z"
+                        is_completed: true
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /order.updated:
     post:
       tags:
         - webhooks
-      summary: Courier at pickup location
-      operationId: post-courier_at_pickup
+      summary: Order information updated
+      operationId: order.updated
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      event:
+                        type: string
+                        x-stoplight:
+                          id: d0gvdtd6zlhtc
+                  - $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  value:
+                    event: order.updated
+                    order_id: SEWG5J
+                    external_order_id: null
+                    status: processing
+                    pickup:
+                      customer_id: 1
+                      phone: 1234567890
+                      name: West Side Wines
+                      apt: "1"
+                      external_customer_id: null
+                      phone_formatted: (123) 456-7890
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 783607
+                        formatted: "1305 York Ave, New York, NY 10021"
+                        street: 1305 York Ave
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7654
+                        lon: -73.9551
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: true
+                      uploaded_verification:
+                        picture: {}
+                    delivery:
+                      customer_id: 2
+                      phone: 2147483647
+                      name: Olivia Thompson
+                      apt: ""
+                      external_customer_id: null
+                      phone_formatted: (214) 748-3647
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 863611
+                        formatted: "300 E 71 St, New York, NY 10021"
+                        street: 300 E 71st St
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7679
+                        lon: -73.9585
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: false
+                        recipient: false
+                        signature: false
+                      uploaded_verification:
+                        picture: {}
+                        recipient: {}
+                        signature: {}
+                      items:
+                        max_weight: 100
+                        max_dimension: 25
+                        total_quantity: 1
+                        total_weight: 100
+                        cubic_feet: 0.93
+                        exact: true
+                        size: large
+                        description: Fits in car trunk
+                        additional: 3000
+                        items:
+                          - description: keg
+                            quantity: 1
+                            length: 8
+                            width: 8
+                            height: 25
+                            weight: 100
+                            measurement: 100lbs | 8” x 8” x 25”
+                            size: large
+                    timeframe:
+                      service: 3-hour
+                      start_time: "2025-01-27T15:00:00.000Z"
+                      end_time: "2025-01-27T18:00:00.000Z"
+                    created_at: "2025-01-27T15:00:00.000Z"
+                    last_updated: "2025-01-27T15:00:00.000Z"
+                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    price: 7
+                    tip: 300
+                    driver: {}
+                    logs:
+                      - log_id: 2
+                        log: arrived_at_delivery
+                        by: driver
+                        datetime: "2025-01-27T15:55:00.000Z"
+                        is_completed: true
+                      - log_id: 1
+                        log: arrived_at_pickup
+                        by: driver
+                        datetime: "2025-01-27T15:12:00.000Z"
+                        is_completed: true
+                    date_time: "2024-04-12T03:59:05.000Z"
     parameters: []
-  /order_picked_up:
+  /order.canceled:
+    parameters: []
     post:
       tags:
         - webhooks
-      summary: Order picked-up
-      operationId: post-order_picked_up
+      summary: Order cancelled by user
+      operationId: order.canceled
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      event:
+                        type: string
+                        x-stoplight:
+                          id: xfwa7wjh9ewf4
+                  - $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  value:
+                    event: order.canceled
+                    order_id: SEWG5J
+                    external_order_id: null
+                    status: processing
+                    pickup:
+                      customer_id: 1
+                      phone: 1234567890
+                      name: West Side Wines
+                      apt: "1"
+                      external_customer_id: null
+                      phone_formatted: (123) 456-7890
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 783607
+                        formatted: "1305 York Ave, New York, NY 10021"
+                        street: 1305 York Ave
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7654
+                        lon: -73.9551
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: true
+                      uploaded_verification:
+                        picture: {}
+                    delivery:
+                      customer_id: 2
+                      phone: 2147483647
+                      name: Olivia Thompson
+                      apt: ""
+                      external_customer_id: null
+                      phone_formatted: (214) 748-3647
+                      note: ""
+                      eta: null
+                      address:
+                        address_id: 863611
+                        formatted: "300 E 71 St, New York, NY 10021"
+                        street: 300 E 71st St
+                        city: New York
+                        state: NY
+                        zip: "10021"
+                        lat: 40.7679
+                        lon: -73.9585
+                        pickup: true
+                        delivery: true
+                        source: API
+                      required_verification:
+                        picture: false
+                        recipient: false
+                        signature: false
+                      uploaded_verification:
+                        picture: {}
+                        recipient: {}
+                        signature: {}
+                      items:
+                        max_weight: 100
+                        max_dimension: 25
+                        total_quantity: 1
+                        total_weight: 100
+                        cubic_feet: 0.93
+                        exact: true
+                        size: large
+                        description: Fits in car trunk
+                        additional: 3000
+                        items:
+                          - description: keg
+                            quantity: 1
+                            length: 8
+                            width: 8
+                            height: 25
+                            weight: 100
+                            measurement: 100lbs | 8” x 8” x 25”
+                            size: large
+                    timeframe:
+                      service: 3-hour
+                      start_time: "2025-01-27T15:00:00.000Z"
+                      end_time: "2025-01-27T18:00:00.000Z"
+                    created_at: "2025-01-27T15:00:00.000Z"
+                    last_updated: "2025-01-27T15:00:00.000Z"
+                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
+                    price: 7
+                    tip: 300
+                    driver: {}
+                    logs:
+                      - log_id: 2
+                        log: arrived_at_delivery
+                        by: driver
+                        datetime: "2025-01-27T15:55:00.000Z"
+                        is_completed: true
+                      - log_id: 1
+                        log: arrived_at_pickup
+                        by: driver
+                        datetime: "2025-01-27T15:12:00.000Z"
+                        is_completed: true
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.location:
+    post:
+      tags:
+        - webhooks
+      summary: Driver location updated
+      operationId: driver.location
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.location
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
     parameters: []
-  /courier_at_delivery:
+  /driver.assigned:
     parameters: []
     post:
       tags:
         - webhooks
-      summary: Courier at delivery location
-      operationId: postcourier_at_delivery
+      summary: Driver assigned to order
+      operationId: driver.assigned
       responses:
         "200":
           description: OK
-  /order_delivered:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.assigned
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.arrived_at_pickup:
     parameters: []
     post:
       tags:
         - webhooks
-      summary: Order delivered
-      operationId: postorder_delivered
+      summary: Driver arrived at order pickup
+      operationId: driver.arrived_at_pickup
       responses:
         "200":
           description: OK
-  /order_cancelled:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.arrived_at_pickup
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.picked_up:
     parameters: []
     post:
       tags:
         - webhooks
-      summary: Order cancelled
-      operationId: postorder_cancelled
+      summary: Driver picked-up order
+      operationId: driver.picked_up
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.picked_up
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.arrived_at_delivery:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver arrived at order delivery
+      operationId: driver.arrived_at_delivery
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.arrived_at_delivery
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.undeliverable:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver unable to deliver order (to be returned)
+      operationId: driver.undeliverable
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.undeliverable
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.delivered:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver delivered order
+      operationId: driver.delivered
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.delivered
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.returned:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver returned order
+      operationId: driver.returned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.returned
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
 components:
   schemas:
     Quote:
@@ -953,6 +1489,46 @@ components:
             slots:
               - start_time: "2025-03-01T19:00:00.000Z"
                 end_time: "2025-03-02T00:00:00.000Z"
+    Webhook:
+      type: object
+      properties:
+        event:
+          type: string
+        order_id:
+          type: string
+        external_order_id:
+          type: string
+        driver:
+          type: object
+          properties:
+            name:
+              type: string
+            phone:
+              type: string
+            vehicle:
+              type: string
+            location:
+              type: object
+              properties:
+                lat:
+                  type: string
+                lon:
+                  type: string
+        date_time:
+          type: string
+      x-examples:
+        Example 1:
+          event: driver.location
+          order_id: 6QLV55
+          external_order_id: "12345"
+          driver:
+            name: John Doe
+            phone: "+12324231132"
+            vehicle: Toyota Highlander
+            location:
+              lat: "40.735073"
+              lon: "-73.994431"
+          date_time: "2024-04-12T03:59:05.000Z"
   securitySchemes:
     bearerAuth:
       type: http
