@@ -1,14 +1,11 @@
-openapi: 3.1.0
-x-stoplight:
-  id: zbwhteau3ge4w
+openapi: 3.0.0
 info:
   title: Delivery Bot API
-  version: "2.0"
-  description: Welcome to Delivery Bot API!<br /><br />This platform allows users to intergration your aplication and website with Delivery Bot's courier network. Wether you need your orders delivered ASAP and through a customer selected time-frame you can now easily automate the process of placing your orders.<br /><br />This developer tool provides you with the necasary documentation, examples, and resources to assist you in creating, managing, and monitoring deliveries.<br /><br />[Postman](https://www.postman.com/deliverybot/workspace/deliver-bot-retail-api/overview)<br />[Github Examples](https://github.com/DeliveryBotNYC/api_documentation)<br />[FAQ](http://dbx.delivery)
+  version: 1.0.0-oas3
+  description: "**Welcome to DBX's API!**\r\n\r\nThe DBX API allows you to integrate your application or website with the DBX courier network. Whether you need to deliver an order ASAP or within a customer-selected time frame, our API enables you to automate the entire delivery process.\r\n\r\nThis documentation provides the necessary resources, examples, and guidelines to help you create, manage, and monitor deliveries.\r\n\r\nAll requests require the use of a bearer token, which can be created in your portal under Automation > API.\r\n\r\nResources:\r\n<br>\r\n[Postman](https://www.postman.com/dbx-delivery/dbx-api/overview)\r\n<br>\r\n[FAQ](https://dbx.delivery/faq#dev)"
   contact:
     email: webmaster@dbx.delivery
     name: Delivery Bot Support
-    url:
   termsOfService: "http://dbx.delivery/terms"
 servers:
   - url: "https://sandbox-api.dbx.delivery"
@@ -16,6 +13,8 @@ servers:
   - url: "https://api.dbx.delivery"
     description: Production
 tags:
+  - name: quote
+    description: Retrieve a Quote (before creating or updating an order)
   - name: orders
     description: Manage your orders
   - name: slots
@@ -27,43 +26,97 @@ paths:
     parameters: []
     post:
       tags:
-        - orders
+        - quote
       summary: Create a quote
       operationId: post-quote
       responses:
         "200":
-          description: Returns quote for delivery
+          description: OK - Quote returned
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  price:
-                    type: integer
-                x-examples:
-                  Example 1:
-                    price: 1099
+                $ref: "#/components/schemas/Quote"
               examples:
                 "":
-                  $ref: "#/components/examples/timeframe-order"
-        "403":
-          $ref: "#/components/responses/Autherizarion-Failed"
+                  $ref: "#/components/examples/quote"
+        "400":
+          $ref: "#/components/responses/400-missing_params"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
         "422":
-          $ref: "#/components/responses/Invalid-Parameters"
-      x-stoplight:
-        id: cygorwi9b71ob
-      description: "Validates if the order (delivery time, pick up address, delivery address, etc) is servicable by Delivery Bot and return a quote. Quoted price will not change and will be the same regardless of when you place the order."
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
+      description: "Validates if the order is serviceable by DBX and returns a quote. The quoted price will remain fixed and will not change, regardless of when the order is placed."
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Quote"
+              $ref: "#/components/schemas/Order"
             examples:
               Simple ASAP quote:
-                $ref: "#/components/examples/asap-quote"
+                value:
+                  pickup:
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
+                  delivery:
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
+                    items:
+                      - description: bag
+                        quantity: 1
+                        size: small
               Quote with time-frame:
-                $ref: "#/components/examples/timeframe-quote"
-  /order:
+                value:
+                  pickup:
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
+                  delivery:
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
+                    items:
+                      - description: bag
+                        quantity: 1
+                        size: small
+                  timeframe:
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
+    patch:
+      tags:
+        - quote
+      summary: Modify order quote
+      operationId: patch-quote
+      responses:
+        "200":
+          description: OK - Quote returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      previous_price:
+                        type: integer
+                        readOnly: true
+                  - $ref: "#/components/schemas/Quote"
+              examples:
+                "":
+                  $ref: "#/components/examples/order"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+            examples:
+              Example 1:
+                value:
+                  external_order_id: iuFhA
+      description: "Validates if the updated order is serviceable by DBX and returns a revised quote. Changes to the address, items, or timeframe may affect the original order quote."
+  /orders:
     post:
       tags:
         - orders
@@ -71,13 +124,20 @@ paths:
       operationId: post-order
       responses:
         "200":
-          description: OK
-        "403":
-          $ref: "#/components/responses/Autherizarion-Failed"
+          description: OK - Order successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  $ref: "#/components/examples/order"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
         "422":
-          $ref: "#/components/responses/Invalid-Parameters"
-      x-stoplight:
-        id: 51klmz4lzce8c
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
       requestBody:
         content:
           application/json:
@@ -85,38 +145,108 @@ paths:
               $ref: "#/components/schemas/Order"
             examples:
               Simple ASAP order:
-                $ref: "#/components/examples/asap-order"
+                value:
+                  pickup:
+                    name: John Doe
+                    phone: "1234567890"
+                    address:
+                      street: 2049 Broadway
+                      zip: 10023
+                  delivery:
+                    name: Jane Doe
+                    phone: (123)123-1234
+                    address:
+                      street: 14 N Moore St
+                      zip: 10013
+                    items:
+                      - description: bag
+                        quantity: 1
+                        size: small
+              Timeframe order with proof of delivery:
+                value:
+                  external_order_id: "1"
+                  pickup:
+                    name: John Doe
+                    phone: "1234567890"
+                    apt: ground level
+                    note: Please pickup at front desk
+                    external_customer_id: "1"
+                    address:
+                      street: 2049 Broadway
+                      city: New York
+                      state: NY
+                      zip: 10023
+                    required_verification:
+                      picture: true
+                  delivery:
+                    tip: 200
+                    name: Jane Doe
+                    phone: (123)123-1234
+                    apt: 47A
+                    note: Use service entrance on Jane St
+                    external_customer_id: "2"
+                    address:
+                      street: 14 N Moore St
+                      city: New York
+                      state: NY
+                      zip: 10013
+                    required_verification:
+                      picture: true
+                      signature: true
+                      recipient: true
+                    items:
+                      - description: keg
+                        quantity: 2
+                        length: 20
+                        width: 15
+                        height: 10
+                        weight: 10
+                      - description: tripod
+                        quantity: 1
+                        length: 20
+                        width: 15
+                        height: 10
+                        weight: 10
+                  timeframe:
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
       description: Creates a new delivery between two addresses.
-  "/order/{order_id}":
+  "/orders/{order_id}":
     get:
       tags:
         - orders
       summary: Get an order
       responses:
         "200":
-          description: Ok
+          description: Ok - Successfully returned order details
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
               examples:
                 "":
-                  $ref: "#/components/examples/timeframe-order"
-        "403":
-          $ref: "#/components/responses/Autherizarion-Failed"
+                  $ref: "#/components/examples/order"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
         "404":
-          $ref: "#/components/responses/Not-Found"
+          $ref: "#/components/responses/404-not_found"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
       operationId: get-order
-      x-stoplight:
-        id: hzvs71uuvgwsr
-      description: "Get existing order details and status, specified by the order_id in the URL."
+      description: "Retrieves the details of an existing order, specified by the order_id or external_order_id in the URL."
+      parameters:
+        - schema:
+            type: string
+          in: query
+          name: order_id
+          description: Order id of the delivery
     parameters:
       - schema:
           type: string
         name: order_id
         in: path
         required: true
-        description: order id of the delivery
+        description: order id of the delivery OR external_order_id
     patch:
       tags:
         - orders
@@ -124,20 +254,22 @@ paths:
       operationId: patch-order-order_id
       responses:
         "200":
-          description: OK
+          description: Ok - Successfully updated order
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
               examples:
                 "":
-                  $ref: "#/components/examples/timeframe-order"
-        "403":
-          $ref: "#/components/responses/Autherizarion-Failed"
+                  $ref: "#/components/examples/order"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
         "404":
-          $ref: "#/components/responses/Not-Found"
-      x-stoplight:
-        id: xjtglb2b0za5c
+          $ref: "#/components/responses/404-not_found"
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
       requestBody:
         content:
           application/json:
@@ -163,7 +295,7 @@ paths:
                       city: string
                       zip: string
                       state: string
-      description: "Modify an existing delivery, specified by the order_id in the URL. Please refrence our guide regarding allowed updates based on order status."
+      description: "Modifies an existing delivery order, specified by the order_id or external_order_id in the URL. Please refer to our FAQ guide for details on allowed updates based on the order status."
     put:
       tags:
         - orders
@@ -171,98 +303,138 @@ paths:
       operationId: put-order-order_id
       responses:
         "200":
-          description: OK
-        "403":
-          $ref: "#/components/responses/Autherizarion-Failed"
-        "404":
-          $ref: "#/components/responses/Not-Found"
-      x-stoplight:
-        id: xfd9xdbqimkh7
-      description: "Cancel an ongoing or previously placed order, specified by the order_id in the URL."
-  /slots:
-    parameters: []
-    post:
-      tags:
-        - slots
-      summary: Get time slots
-      operationId: post-slots
-      responses:
-        "200":
-          description: OK
+          description: Ok - Successfully canceled order
           content:
             application/json:
               schema:
-                type: object
-                properties: {}
+                $ref: "#/components/schemas/Order"
+              examples:
+                "":
+                  $ref: "#/components/examples/order"
+        "404":
+          $ref: "#/components/responses/404-not_found"
+      description: "Cancels a previously placed order, specified by the order_id in the URL."
+  /slots:
+    post:
+      tags:
+        - slots
+      summary: Get earliest available slot
+      operationId: post-slot
+      responses:
+        "200":
+          description: OK - Earliest timeframe returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timeframe"
               examples:
                 "":
                   value:
-                    available_slots:
-                      - start_time: "2022-01-18T17:00:00.000+02:00"
-                        end_time: "2022-01-18T18:00:00.000+02:00"
-                        type: 1_hour
-                      - start_time: "2022-01-18T17:00:00.000+02:00"
-                        end_time: "2022-01-18T19:00:00.000+02:00"
-                        type: 2_hour
-      x-stoplight:
-        id: hghucg6tnnq84
-      description: Returns time slots available between two addresses and specified restrictions.
+                    service: 3-hour
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Quote"
+              $ref: "#/components/schemas/Order"
             examples:
-              ASAP slots for today:
+              Example 1:
+                $ref: "#/components/examples/order"
+      description: Retrieves the earliest available time slot for a delivery between two addresses.
+  "/slots/{date}":
+    parameters:
+      - schema:
+          type: string
+        name: date
+        in: path
+        required: true
+        description: Date to return available slots for (not specifying a date returns first available slot)
+    post:
+      tags:
+        - slots
+      summary: Get available slots for date
+      operationId: post-slots-date
+      responses:
+        "200":
+          description: OK - Available timeframes for specified date returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Slots"
+              examples:
+                "":
+                  value:
+                    - service: 1-hour
+                      slots:
+                        - start_time: "2025-03-01T14:00:00.000Z"
+                          end_time: "2025-03-01T15:00:00.000Z"
+                        - start_time: "2025-03-01T15:00:00.000Z"
+                          end_time: "2025-03-01T16:00:00.000Z"
+                        - start_time: "2025-03-01T16:00:00.000Z"
+                          end_time: "2025-03-01T17:00:00.000Z"
+                        - start_time: "2025-03-01T17:00:00.000Z"
+                          end_time: "2025-03-01T18:00:00.000Z"
+                        - start_time: "2025-03-01T18:00:00.000Z"
+                          end_time: "2025-03-01T19:00:00.000Z"
+                        - start_time: "2025-03-01T19:00:00.000Z"
+                          end_time: "2025-03-01T20:00:00.000Z"
+                        - start_time: "2025-03-01T20:00:00.000Z"
+                          end_time: "2025-03-01T21:00:00.000Z"
+                        - start_time: "2025-03-01T21:00:00.000Z"
+                          end_time: "2025-03-01T22:00:00.000Z"
+                        - start_time: "2025-03-01T22:00:00.000Z"
+                          end_time: "2025-03-01T23:00:00.000Z"
+                        - start_time: "2025-03-01T23:00:00.000Z"
+                          end_time: "2025-03-02T00:00:00.000Z"
+                    - service: 3-hour
+                      slots:
+                        - start_time: "2025-03-01T15:00:00.000Z"
+                          end_time: "2025-03-01T18:00:00.000Z"
+                        - start_time: "2025-03-01T16:00:00.000Z"
+                          end_time: "2025-03-01T19:00:00.000Z"
+                        - start_time: "2025-03-01T17:00:00.000Z"
+                          end_time: "2025-03-01T20:00:00.000Z"
+                        - start_time: "2025-03-01T18:00:00.000Z"
+                          end_time: "2025-03-01T21:00:00.000Z"
+                        - start_time: "2025-03-01T19:00:00.000Z"
+                          end_time: "2025-03-01T22:00:00.000Z"
+                        - start_time: "2025-03-01T20:00:00.000Z"
+                          end_time: "2025-03-01T23:00:00.000Z"
+                        - start_time: "2025-03-01T21:00:00.000Z"
+                          end_time: "2025-03-02T00:00:00.000Z"
+                        - start_time: "2025-03-01T22:00:00.000Z"
+                          end_time: "2025-03-02T01:00:00.000Z"
+                        - start_time: "2025-03-01T23:00:00.000Z"
+                          end_time: "2025-03-02T02:00:00.000Z"
+                    - service: same-day
+                      slots:
+                        - start_time: "2025-03-01T19:00:00.000Z"
+                          end_time: "2025-03-02T00:00:00.000Z"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
+      description: Returns a list of available time slots between two addresses on the specified date.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+            examples:
+              "":
                 value:
-                  restrictions: {}
-                  items:
-                    - quantity: 3
-                      type: 1-hander
-                    - quantity: 1
-                      type: box
                   pickup:
-                    location:
-                      street: 400 East 74 Street
-                      apt: "301"
-                      city: New York
-                      zip: "10012"
-                      state: NY
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
                   delivery:
-                    location:
-                      street: 400 East 74 Street
-                      apt: "301"
-                      city: New York
-                      zip: "10012"
-                      state: NY
-              Restricted type and dates:
-                value:
-                  restrictions:
-                    1_hour: false
-                    2_hour: false
-                    same_day: true
-                    start_time: "2022-01-18T21:00:00.000+02:00"
-                    end_time: "2022-01-18T21:00:00.000+02:00"
-                  items:
-                    - quantity: 3
-                      type: 1-hander
-                    - quantity: 1
-                      type: box
-                  pickup:
-                    location:
-                      street: 400 East 74 Street
-                      apt: "301"
-                      city: New York
-                      zip: "10012"
-                      state: NY
-                  delivery:
-                    location:
-                      street: 400 East 74 Street
-                      apt: "301"
-                      city: New York
-                      zip: "10012"
-                      state: NY
-  order_assigned:
+                    address:
+                      street: 400 E 74 St
+                      zip: "10021"
+  /order_assigned:
     parameters: []
     post:
       tags:
@@ -272,9 +444,7 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: 20o9hi5mxgsy5
-  courier_at_pickup:
+  /courier_at_pickup:
     post:
       tags:
         - webhooks
@@ -283,10 +453,8 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: xocda2zhvmfd0
     parameters: []
-  order_picked_up:
+  /order_picked_up:
     post:
       tags:
         - webhooks
@@ -295,10 +463,8 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: m0p2mh22eqv5v
     parameters: []
-  courier_at_delivery:
+  /courier_at_delivery:
     parameters: []
     post:
       tags:
@@ -308,9 +474,7 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: nw7kyy87tx1yr
-  order_delivered:
+  /order_delivered:
     parameters: []
     post:
       tags:
@@ -320,9 +484,7 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: 2qctu2kaxwvo9
-  order_cancelled:
+  /order_cancelled:
     parameters: []
     post:
       tags:
@@ -332,204 +494,275 @@ paths:
       responses:
         "200":
           description: OK
-      x-stoplight:
-        id: l4qmhparo81cg
 components:
   schemas:
     Quote:
       type: object
-      x-stoplight:
-        id: 5akiyb98eijz3
       x-examples:
         Example 1:
-          timeframe:
-            by: user
-            service: 2_hour
-            start_time: "2023-11-22T22:00:00Z"
-            end_time: "2023-11-22T22:00:00Z"
-          items:
-            - quantity: 3
-              type: 1-hander
-            - quantity: 1
-              type: box
-          pickup:
-            location:
-              street: 400 East 74 Street
-              apt: "301"
-              city: New York
-              zip: "10012"
-              state: NY
-              lat: 400.735073
-              lon: -73.994431
-          delivery:
-            location:
-              street: 400 East 74 Street
-              apt: "301"
-              city: New York
-              zip: "10012"
-              state: NY
-              lat: 40.735073
-              lon: -73.994431
+          $ref: "#/components/examples/quote"
       properties:
+        price:
+          type: integer
+          readOnly: true
+        tip:
+          type: integer
+          readOnly: true
+        discount:
+          type: object
+          properties:
+            percentage:
+              type: integer
+              readOnly: true
+            original:
+              type: integer
+              readOnly: true
         timeframe:
           $ref: "#/components/schemas/Timeframe"
-        items:
-          $ref: "#/components/schemas/Items"
-        pickup:
-          type: object
-          properties:
-            location:
-              $ref: "#/components/schemas/Location"
-              x-stoplight:
-                id: 9xvl4k6ylmdlp
-        delivery:
-          type: object
-          properties:
-            location:
-              $ref: "#/components/schemas/Location"
-              x-stoplight:
-                id: b6qmyv1j84ije
+      title: ""
     Order:
       type: object
       x-examples:
         Example 1:
-          external_order_id: diu2hi2
-          tip: "3.99"
-          timeframe:
-            service: timeframe
-            request: pickup
-            start_time: "2023-06-25T15:00:00.000Z"
-            end_time: "2023-06-26T00:00:00.000Z"
-          items:
-            - quantity: 2
-              type: box
-          products:
-            - id: 2
-              name: box
-              description: box
+          order_id: IL3YK3
+          external_order_id: "1"
+          status: processing
           pickup:
-            name: John Sloko
-            phone: (917) 573-7687
-            note: This is pickup note
-            location:
-              access_code: "*3948#"
-              street_address_1: 400 East 74th Street
-              street_address_2: "301"
-              city: NY
-              zip: "10012"
+            customer_id: 134
+            phone: 1234567890
+            name: John Doe
+            apt: ground level
+            external_customer_id: "1"
+            phone_formatted: (123) 456-7890
+            note: Please pickup at front desk
+            eta: null
+            address:
+              address_id: 940645
+              formatted: "2049 Broadway, New York, NY 10023"
+              street: 2049 Broadway
+              city: New York
               state: NY
+              zip: "10023"
+              lat: 40.7779
+              lon: -73.9825
+              pickup: true
+              delivery: true
+              source: API
             required_verification:
-              barocde:
-                value: hFu9a0dE
-                type: QR
               picture: true
+            uploaded_verification:
+              picture: {}
           delivery:
-            name: John Sloko
-            phone: (917) 573-7687
-            note: This is a delivery note
-            location:
-              access_code: "*3948#"
-              street_address_1: 400 East 74th Street
-              street_address_2: "301"
-              city: NY
-              zip: "10012"
+            tip: 0
+            customer_id: 133
+            phone: 1231231234
+            name: Jane Doe
+            apt: 47A
+            external_customer_id: "2"
+            phone_formatted: (123) 123-1234
+            note: Use service entrance on Jane St
+            eta: null
+            address:
+              address_id: 512381
+              formatted: "14 N Moore St, New York, NY 10013"
+              street: 14 N Moore St
+              city: New York
               state: NY
+              zip: "10013"
+              lat: 40.7197
+              lon: -74.0066
+              pickup: true
+              delivery: true
+              source: API
             required_verification:
-              barocde:
-                value: hFu9a0dE
-                type: QR
               picture: true
-              recipient: false
-              signature: false
-              pin: true
-              identification:
-                min_age: 21
+              recipient: true
+              signature: true
+            uploaded_verification:
+              picture: {}
+              recipient: {}
+              signature: {}
+            items:
+              max_weight: 10
+              max_dimension: 20
+              total_quantity: 3
+              total_weight: 20
+              cubic_feet: 1.74
+              exact: true
+              size: medium
+              description: Fits in backseat
+              additional: 700
+              items:
+                - description: keg
+                  quantity: 2
+                  length: 20
+                  width: 15
+                  height: 10
+                  weight: 10
+                  measurement: 10lbs | 20” x 15” x 10”
+                  size: medium
+                - description: tripod
+                  quantity: 1
+                  length: 20
+                  width: 15
+                  height: 10
+                  weight: 10
+                  measurement: 10lbs | 20” x 15” x 10”
+                  size: medium
+          timeframe:
+            service: 3-hour
+            start_time: "2025-03-22T15:00:00.000Z"
+            end_time: "2025-03-22T18:00:00.000Z"
+          created_at: "2025-02-25T20:09:31.000Z"
+          last_updated: "2025-02-25T20:09:31.000Z"
+          pickup_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJwaWNrdXAiLCJpYXQiOjE3NDA1ODcwNTAsImV4cCI6MTc3NjU4NzA1MH0.7O9gMQ2_GEN5mrPH4aTezOW_U4Uu6vLRiZuzhmgWKvw"
+          delivery_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJkZWxpdmVyeSIsImlhdCI6MTc0MDU4NzA1MCwiZXhwIjoxNzc2NTg3MDUwfQ.dqADoalSGreamn8yDs8ke_0yJl4AEdmf6cB7denFWuI"
+          price: 1347
+          driver: {}
+          logs:
+            - log: delivered
+              datetime:
+                start: "2025-03-22T15:30:00.000Z"
+                end: "2025-03-22T18:05:00.000Z"
+              is_completed: false
+            - log: arrived_at_delivery
+              datetime:
+                start: "2025-03-22T15:30:00.000Z"
+                end: "2025-03-22T18:00:00.000Z"
+              is_completed: false
+            - log: picked_up
+              datetime:
+                start: "2025-03-22T14:30:00.000Z"
+                end: "2025-03-22T17:30:00.000Z"
+              is_completed: false
+            - log: arrived_at_pickup
+              datetime:
+                start: "2025-03-22T14:30:00.000Z"
+                end: "2025-03-22T17:30:00.000Z"
+              is_completed: false
+            - log: assigned
+              datetime:
+                start: "2025-03-22T14:20:00.000Z"
+                end: "2025-03-22T17:30:00.000Z"
+              is_completed: false
+            - log_id: 23
+              log: processing
+              by: user
+              datetime: "2025-02-25T20:09:31.000Z"
+              is_completed: true
       properties:
+        order_id:
+          type: string
+          readOnly: true
         external_order_id:
           type: string
-        tip:
+        status:
           type: string
+          readOnly: true
+        pickup:
+          allOf:
+            - $ref: "#/components/schemas/Customer"
+            - type: object
+              properties:
+                eta:
+                  type: string
+                  format: date-time
+                  default: null
+                  readOnly: true
+                required_verification:
+                  type: object
+                  properties:
+                    picture:
+                      type: boolean
+                uploaded_verification:
+                  type: object
+                  properties:
+                    picture:
+                      type: object
+        delivery:
+          allOf:
+            - $ref: "#/components/schemas/Customer"
+              type: object
+              properties:
+                tip:
+                  type: integer
+                  default: 0
+                eta:
+                  type: string
+                  format: date-time
+                  default: null
+                  readOnly: true
+                required_verification:
+                  type: object
+                  properties:
+                    picture:
+                      type: boolean
+                    recipient:
+                      type: boolean
+                    signature:
+                      type: boolean
+                uploaded_verification:
+                  type: object
+                items:
+                  type: object
+                  properties:
+                    max_weight:
+                      type: string
+                    items:
+                      $ref: "#/components/schemas/Items"
         timeframe:
           $ref: "#/components/schemas/Timeframe"
-        items:
-          $ref: "#/components/schemas/Items"
-        products:
-          $ref: "#/components/schemas/Products"
-        pickup:
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_updated:
+          type: string
+          readOnly: true
+        pickup_tracking_url:
+          type: string
+          readOnly: true
+        delivery_tracking_url:
+          type: string
+          readOnly: true
+        price:
+          type: integer
+          readOnly: true
+        driver:
           type: object
           properties:
             name:
               type: string
-            phone:
-              type: string
-            note:
-              type: string
-            location:
-              $ref: "#/components/schemas/Location"
-            required_verification:
-              type: object
-              properties:
-                barocde:
-                  type: object
-                  properties:
-                    value:
-                      type: string
-                    type:
-                      type: string
-                picture:
-                  type: boolean
-        delivery:
-          type: object
-          properties:
-            name:
-              type: string
-            phone:
-              type: string
-            note:
-              type: string
-            location:
-              $ref: "#/components/schemas/Location"
-            required_verification:
-              type: object
-              properties:
-                barocde:
-                  type: object
-                  properties:
-                    value:
-                      type: string
-                    type:
-                      type: string
-                picture:
-                  type: boolean
-                recipient:
-                  type: boolean
-                signature:
-                  type: boolean
-                pin:
-                  type: boolean
-                identification:
-                  type: object
-                  properties:
-                    min_age:
-                      type: integer
+              readOnly: true
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              log:
+                type: string
+              datetime:
+                type: string
+              is_completed:
+                type: boolean
+              log_id:
+                type: integer
+              by:
+                type: string
     Timeframe:
       type: object
       x-examples:
-        Example 1:
-          by: user
-          service: 2_hour
-          start_time: "2023-11-22T22:00:00Z"
+        Example:
+          service: 1_hour
+          start_time: "2023-11-22T21:00:00Z"
           end_time: "2023-11-22T22:00:00Z"
       properties:
-        by:
-          enum:
-            - user
-            - pickup
-            - delivery
         service:
           enum:
-            - 2_hour
-            - same_day
+            - 1-hour
+            - 3-hour
+            - same-day
+          readOnly: true
         start_time:
           type: string
           format: date-time
@@ -538,255 +771,361 @@ components:
           format: date-time
     Items:
       type: array
-      x-examples:
-        Example 1:
-          items:
-            - quantity: 3
-              type: 1-hander
-            - quantity: 1
-              type: box
-      items:
-        x-stoplight:
-          id: rnog775m8v7ef
-        type: object
-        properties:
-          quantity:
-            type: integer
-            x-stoplight:
-              id: h3m3o9j901eff
-          type:
-            type: string
-            x-stoplight:
-              id: 1fhl20x5y5dj3
-    Products:
-      type: array
-      x-stoplight:
-        id: zbfsnewt7gsk0
-      x-examples:
-        Example 1:
-          items:
-            - quantity: 3
-              type: 1-hander
-            - quantity: 1
-              type: box
       items:
         type: object
         properties:
-          id:
-            type: integer
-            x-stoplight:
-              id: o7d65ha1fdog8
-          name:
-            type: string
-            x-stoplight:
-              id: 8i2rqvakldck3
           description:
             type: string
-            x-stoplight:
-              id: sui0wkx1cgltz
-    Location:
+          quantity:
+            type: integer
+          length:
+            type: integer
+          width:
+            type: integer
+          height:
+            type: integer
+          weight:
+            type: integer
+          measurement:
+            type: string
+          size:
+            type: string
+      x-examples:
+        Example 1:
+          - description: keg
+            quantity: 2
+            length: 20
+            width: 15
+            height: 10
+            weight: 10
+            measurement: 10lbs | 20” x 15” x 10”
+            size: medium
+    Customer:
       type: object
+      x-examples:
+        Example 1:
+          customer_id: 134
+          phone: 1234567890
+          name: John Doe
+          apt: ground level
+          external_customer_id: "1"
+          phone_formatted: (123) 456-7890
+          note: Please pickup at front desk
+          address:
+            address_id: 940645
+            formatted: "2049 Broadway, New York, NY 10023"
+            street: 2049 Broadway
+            city: New York
+            state: NY
+            zip: "10023"
+            lat: 40.7779
+            lon: -73.9825
+            pickup: true
+            delivery: true
+            source: API
+      required:
+        - phone
+        - name
       properties:
-        access_code:
+        customer_id:
+          type: integer
+          readOnly: true
+        phone:
+          type: integer
+        name:
           type: string
-        street_address_1:
+        apt:
           type: string
-        street_address_2:
+        external_customer_id:
+          type: string
+        phone_formatted:
+          type: string
+          readOnly: true
+        note:
+          type: string
+        address:
+          $ref: "#/components/schemas/Address"
+    Address:
+      type: object
+      x-examples:
+        Example 1:
+          address_id: 940645
+          formatted: "2049 Broadway, New York, NY 10023"
+          street: 2049 Broadway
+          city: New York
+          state: NY
+          zip: "10023"
+          lat: 40.7779
+          lon: -73.9825
+          pickup: true
+          delivery: true
+          source: API
+      properties:
+        address_id:
+          type: integer
+        formatted:
+          type: string
+          readOnly: true
+        street:
           type: string
         city:
           type: string
-        zip:
-          type: string
         state:
           type: string
+        zip:
+          type: string
+        lat:
+          type: number
+          readOnly: true
+        lon:
+          type: number
+          readOnly: true
+        pickup:
+          type: boolean
+          readOnly: true
+        delivery:
+          type: boolean
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+    Slots:
+      type: array
+      items:
+        type: object
+        properties:
+          service:
+            type: string
+          slots:
+            type: array
+            items:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                end_time:
+                  type: string
       x-examples:
         Example 1:
-          access_code: "*3948#"
-          street_address_1: 400 East 74th Street
-          street_address_2: "301"
-          city: NY
-          zip: "10012"
-          state: NY
+          - service: 1-hour
+            slots:
+              - start_time: "2025-03-01T14:00:00.000Z"
+                end_time: "2025-03-01T15:00:00.000Z"
+              - start_time: "2025-03-01T15:00:00.000Z"
+                end_time: "2025-03-01T16:00:00.000Z"
+              - start_time: "2025-03-01T16:00:00.000Z"
+                end_time: "2025-03-01T17:00:00.000Z"
+              - start_time: "2025-03-01T17:00:00.000Z"
+                end_time: "2025-03-01T18:00:00.000Z"
+              - start_time: "2025-03-01T18:00:00.000Z"
+                end_time: "2025-03-01T19:00:00.000Z"
+              - start_time: "2025-03-01T19:00:00.000Z"
+                end_time: "2025-03-01T20:00:00.000Z"
+              - start_time: "2025-03-01T20:00:00.000Z"
+                end_time: "2025-03-01T21:00:00.000Z"
+              - start_time: "2025-03-01T21:00:00.000Z"
+                end_time: "2025-03-01T22:00:00.000Z"
+              - start_time: "2025-03-01T22:00:00.000Z"
+                end_time: "2025-03-01T23:00:00.000Z"
+              - start_time: "2025-03-01T23:00:00.000Z"
+                end_time: "2025-03-02T00:00:00.000Z"
+          - service: 3-hour
+            slots:
+              - start_time: "2025-03-01T15:00:00.000Z"
+                end_time: "2025-03-01T18:00:00.000Z"
+              - start_time: "2025-03-01T16:00:00.000Z"
+                end_time: "2025-03-01T19:00:00.000Z"
+              - start_time: "2025-03-01T17:00:00.000Z"
+                end_time: "2025-03-01T20:00:00.000Z"
+              - start_time: "2025-03-01T18:00:00.000Z"
+                end_time: "2025-03-01T21:00:00.000Z"
+              - start_time: "2025-03-01T19:00:00.000Z"
+                end_time: "2025-03-01T22:00:00.000Z"
+              - start_time: "2025-03-01T20:00:00.000Z"
+                end_time: "2025-03-01T23:00:00.000Z"
+              - start_time: "2025-03-01T21:00:00.000Z"
+                end_time: "2025-03-02T00:00:00.000Z"
+              - start_time: "2025-03-01T22:00:00.000Z"
+                end_time: "2025-03-02T01:00:00.000Z"
+              - start_time: "2025-03-01T23:00:00.000Z"
+                end_time: "2025-03-02T02:00:00.000Z"
+          - service: same-day
+            slots:
+              - start_time: "2025-03-01T19:00:00.000Z"
+                end_time: "2025-03-02T00:00:00.000Z"
   securitySchemes:
-    API Key:
-      name: apiKey
-      type: apiKey
-      in: query
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   requestBodies: {}
   examples:
-    asap-quote:
+    quote:
       value:
-        items:
-          - quantity: 3
-            type: 1-hander
-          - quantity: 1
-            type: box
-        pickup:
-          location:
-            street: 400 East 74 Street
-            apt: "301"
-            city: New York
-            zip: "10012"
-            state: NY
-        delivery:
-          location:
-            street: 400 East 74 Street
-            apt: "301"
-            city: New York
-            zip: "10012"
-            state: NY
-    timeframe-quote:
-      value:
+        price: 3399.15
+        tip: 0
+        discount:
+          percentage: 15
+          original: 3999
         timeframe:
-          service: 2_hour
-          start_time: "2023-11-22T22:10:00Z"
-          end_time: "2023-11-22T22:12:00Z"
-        items:
-          - quantity: 3
-            type: 1-hander
-          - quantity: 1
-            type: box
-        pickup:
-          location:
-            street: 400 East 74 Street
-            apt: "301"
-            city: New York
-            zip: "10012"
-            state: NY
-        delivery:
-          location:
-            street: 400 East 74 Street
-            apt: "301"
-            city: New York
-            zip: "10012"
-            state: NY
-    asap-order:
+          service: 1-hour
+          start_time: "2025-03-22T15:00:00.000Z"
+          end_time: "2025-03-22T18:00:00.000Z"
+    order:
       value:
-        external_order_id: diu2hi2
-        tip: "3.99"
-        items:
-          - quantity: 2
-            type: box
-        products:
-          - id: 2
-            name: box
-            description: box
+        order_id: IL3YK3
+        external_order_id: "1"
+        status: processing
         pickup:
-          name: John Sloko
-          phone: (917) 573-7687
-          note: This is pickup note
-          location:
-            access_code: "*3948#"
-            street_address_1: 400 East 74th Street
-            street_address_2: "301"
-            city: NY
-            zip: "10012"
+          customer_id: 134
+          phone: 1234567890
+          name: John Doe
+          apt: ground level
+          external_customer_id: "1"
+          phone_formatted: (123) 456-7890
+          note: Please pickup at front desk
+          eta: null
+          address:
+            address_id: 940645
+            formatted: "2049 Broadway, New York, NY 10023"
+            street: 2049 Broadway
+            city: New York
             state: NY
+            zip: "10023"
+            lat: 40.7779
+            lon: -73.9825
+            pickup: true
+            delivery: true
+            source: API
           required_verification:
-            barocde:
-              value: hFu9a0dE
-              type: QR
             picture: true
+          uploaded_verification:
+            picture: {}
         delivery:
-          name: John Sloko
-          phone: (917) 573-7687
-          note: This is a delivery note
-          location:
-            access_code: "*3948#"
-            street_address_1: 400 East 74th Street
-            street_address_2: "301"
-            city: NY
-            zip: "10012"
+          tip: 0
+          customer_id: 133
+          phone: 1231231234
+          name: Jane Doe
+          apt: 47A
+          external_customer_id: "2"
+          phone_formatted: (123) 123-1234
+          note: Use service entrance on Jane St
+          eta: null
+          address:
+            address_id: 512381
+            formatted: "14 N Moore St, New York, NY 10013"
+            street: 14 N Moore St
+            city: New York
             state: NY
+            zip: "10013"
+            lat: 40.7197
+            lon: -74.0066
+            pickup: true
+            delivery: true
+            source: API
           required_verification:
-            barocde:
-              value: hFu9a0dE
-              type: QR
             picture: true
-            recipient: false
-            signature: false
-            pin: true
-            identification:
-              min_age: 21
-    timeframe-order:
-      value:
-        external_order_id: diu2hi2
-        tip: "3.99"
+            recipient: true
+            signature: true
+          uploaded_verification:
+            picture: {}
+            recipient: {}
+            signature: {}
+          items:
+            max_weight: 10
+            max_dimension: 20
+            total_quantity: 3
+            total_weight: 20
+            cubic_feet: 1.74
+            exact: true
+            size: medium
+            description: Fits in backseat
+            additional: 700
+            items:
+              - description: keg
+                quantity: 2
+                length: 20
+                width: 15
+                height: 10
+                weight: 10
+                measurement: 10lbs | 20” x 15” x 10”
+                size: medium
+              - description: tripod
+                quantity: 1
+                length: 20
+                width: 15
+                height: 10
+                weight: 10
+                measurement: 10lbs | 20” x 15” x 10”
+                size: medium
         timeframe:
-          service: 2_hour
-          start_time: "2023-06-25T15:00:00.000Z"
-          end_time: "2023-06-26T00:00:00.000Z"
-        items:
-          - quantity: 2
-            type: box
-        products:
-          - id: 2
-            name: box
-            description: box
-        pickup:
-          name: John Sloko
-          phone: (917) 573-7687
-          note: This is pickup note
-          location:
-            access_code: "*3948#"
-            street_address_1: 400 East 74th Street
-            street_address_2: "301"
-            city: NY
-            zip: "10012"
-            state: NY
-          required_verification:
-            barocde:
-              value: hFu9a0dE
-              type: QR
-            picture: true
-        delivery:
-          name: John Sloko
-          phone: (917) 573-7687
-          note: This is a delivery note
-          location:
-            access_code: "*3948#"
-            street_address_1: 400 East 74th Street
-            street_address_2: "301"
-            city: NY
-            zip: "10012"
-            state: NY
-          required_verification:
-            barocde:
-              value: hFu9a0dE
-              type: QR
-            picture: true
-            recipient: false
-            signature: false
-            pin: true
-            identification:
-              min_age: 21
+          service: 3-hour
+          start_time: "2025-03-22T15:00:00.000Z"
+          end_time: "2025-03-22T18:00:00.000Z"
+        created_at: "2025-02-25T20:09:31.000Z"
+        last_updated: "2025-02-25T20:09:31.000Z"
+        pickup_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJwaWNrdXAiLCJpYXQiOjE3NDA1ODcwNTAsImV4cCI6MTc3NjU4NzA1MH0.7O9gMQ2_GEN5mrPH4aTezOW_U4Uu6vLRiZuzhmgWKvw"
+        delivery_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJkZWxpdmVyeSIsImlhdCI6MTc0MDU4NzA1MCwiZXhwIjoxNzc2NTg3MDUwfQ.dqADoalSGreamn8yDs8ke_0yJl4AEdmf6cB7denFWuI"
+        price: 1347
+        driver: {}
+        logs:
+          - log: delivered
+            datetime:
+              start: "2025-03-22T15:30:00.000Z"
+              end: "2025-03-22T18:05:00.000Z"
+            is_completed: false
+          - log: arrived_at_delivery
+            datetime:
+              start: "2025-03-22T15:30:00.000Z"
+              end: "2025-03-22T18:00:00.000Z"
+            is_completed: false
+          - log: picked_up
+            datetime:
+              start: "2025-03-22T14:30:00.000Z"
+              end: "2025-03-22T17:30:00.000Z"
+            is_completed: false
+          - log: arrived_at_pickup
+            datetime:
+              start: "2025-03-22T14:30:00.000Z"
+              end: "2025-03-22T17:30:00.000Z"
+            is_completed: false
+          - log: assigned
+            datetime:
+              start: "2025-03-22T14:20:00.000Z"
+              end: "2025-03-22T17:30:00.000Z"
+            is_completed: false
+          - log_id: 23
+            log: processing
+            by: user
+            datetime: "2025-02-25T20:09:31.000Z"
+            is_completed: true
   responses:
-    Not-Found:
-      description: Example response
+    404-not_found:
+      description: not_found
       content:
         application/json:
           schema:
             type: object
-            properties:
-              code:
-                type: string
-              error:
-                type: string
-              messege:
-                type: string
             x-examples:
               Example 1:
                 code: invalid_delivery_parameters
                 error: outside_of_delivery_time.
                 messege: Ready by time outside of delivery hours.
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              reason:
+                type: string
           examples:
             "":
               value:
                 code: not_found
-                error: order_not_found
-                message: "Order_id: 0 not found"
-    Invalid-Parameters:
-      description: Example response
+                message: The requested resource cannot be found.
+                reason: The requested order does not exist.
+    422-invalid_params:
+      description: invalid_params
       content:
         application/json:
           schema:
@@ -809,56 +1148,37 @@ components:
                 type: string
               message:
                 type: string
-              field_error:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    field:
-                      type: string
-                    error:
-                      type: string
+              reason:
+                type: string
           examples:
             "":
               value:
                 code: invalid_params
-                message: One or more fields couldn't be validated.
-                field_error:
-                  - field: name
-                    error: Minimum character length for  name is 2.
-                  - field: phone
-                    error: "Invalid phone number format. Required format: “+xxxxxxxxxx“."
-    Unprocessable-Entity:
-      description: Example response
+                message: One or more values are not valid.
+                reason: Invalid size or item dimensions.
+    500-internal_server_error:
+      description: internal_server_error
       content:
         application/json:
           schema:
             type: object
-            properties:
-              code:
-                type: string
-              error:
-                type: string
-              messege:
-                type: string
             x-examples:
               Example 1:
                 code: invalid_delivery_parameters
                 error: outside_of_delivery_zone
                 messege: Address outside of delivery zone.
+            properties:
+              code:
+                type: string
+              messege:
+                type: string
           examples:
-            Invalid Timeframe:
+            "":
               value:
-                code: invalid_parameters
-                error: invalid_timeframe
-                title: start_time and end_time must be 2 hours or same-day (2PM-7PM).
-            Outside delivery zone:
-              value:
-                code: invalid_parameters
-                error: outside_of_delivery_zone
-                messege: Address outside of delivery zone.
-    Autherizarion-Failed:
-      description: Example response
+                code: internal_server_error
+                message: "DBX expierenced an internal service error, please try again later."
+    401-authentication_error:
+      description: authentication_error
       content:
         application/json:
           schema:
@@ -875,7 +1195,31 @@ components:
           examples:
             "":
               value:
-                code: authorization_failed
-                message: Invalid authorization token.
+                code: authentication_error
+                message: Access denied for bearer token provided.
+    400-missing_params:
+      description: missing_params
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              field:
+                type: string
+            x-examples:
+              Example 1:
+                code: missing_params
+                message: One or more required values are missing.
+                field: bearer_token
+          examples:
+            "":
+              value:
+                code: missing_params
+                message: One or more required values are missing.
+                field: bearer_token
 security:
-  - API Key: []
+  - bearerAuth: []
