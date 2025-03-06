@@ -85,11 +85,19 @@ paths:
                   timeframe:
                     start_time: "2025-03-22T15:00:00.000Z"
                     end_time: "2025-03-22T18:00:00.000Z"
+  "/quote/{order_id}":
     patch:
       tags:
         - quote
       summary: Modify order quote
       operationId: patch-quote
+      parameters:
+        - schema:
+            type: string
+          name: order_id
+          in: path
+          required: true
+          description: Order id of the delivery OR external_order_id
       responses:
         "200":
           description: OK - Quote returned
@@ -105,17 +113,30 @@ paths:
                   - $ref: "#/components/schemas/Quote"
               examples:
                 "":
-                  $ref: "#/components/examples/order"
+                  value:
+                    previous_price: 1347
+                    price: 1347
+                    tip: 0
+                    discount:
+                      percentage: 15
+                      original: 1585
       requestBody:
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/Order"
             examples:
-              Example 1:
+              Updating tip:
                 value:
-                  external_order_id: iuFhA
-      description: "Validates if the updated order is serviceable by DBX and returns a revised quote. Changes to the address, items, or timeframe may affect the original order quote."
+                  delivery:
+                    tip: 250
+              Updating delivery address (only allowed at "processing"):
+                value:
+                  delivery:
+                    address:
+                      street: 400 E 74 St
+                      zip: 10021
+      description: "Validates if the updated order is serviceable by DBX and returns a revised quote. Only post fields you wish to update. Changes to the address, items, or timeframe may affect the original order quote. Please refer to our FAQ guide for details on allowed updates based on the order status."
   /orders:
     post:
       tags:
@@ -239,14 +260,14 @@ paths:
             type: string
           in: query
           name: order_id
-          description: Order id of the delivery
+          description: Order id of the delivery OR external_order_id
     parameters:
       - schema:
           type: string
         name: order_id
         in: path
         required: true
-        description: order id of the delivery OR external_order_id
+        description: Order id of the delivery OR external_order_id
     patch:
       tags:
         - orders
@@ -295,7 +316,7 @@ paths:
                       city: string
                       zip: string
                       state: string
-      description: "Modifies an existing delivery order, specified by the order_id or external_order_id in the URL. Please refer to our FAQ guide for details on allowed updates based on the order status."
+      description: "Modifies an existing delivery order, specified by the order_id or external_order_id in the URL. Only post fields you wish to update. Please refer to our FAQ guide for details on allowed updates based on the order status."
     put:
       tags:
         - orders
@@ -862,6 +883,34 @@ paths:
                         lat: "40.735073"
                         lon: "-73.994431"
                     date_time: "2024-04-12T03:59:05.000Z"
+  /driver.pickup_next_stop:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver en route to pickup
+      operationId: driver.pickup_next_stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.pickup_next_stop
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
   /driver.arrived_at_pickup:
     parameters: []
     post:
@@ -908,6 +957,34 @@ paths:
                 "":
                   value:
                     event: driver.picked_up
+                    order_id: 6QLV55
+                    external_order_id: "12345"
+                    driver:
+                      name: John Doe
+                      phone: "+12324231132"
+                      vehicle: Toyota Highlander
+                      location:
+                        lat: "40.735073"
+                        lon: "-73.994431"
+                    date_time: "2024-04-12T03:59:05.000Z"
+  /driver.delivery_next_stop:
+    parameters: []
+    post:
+      tags:
+        - webhooks
+      summary: Driver en route to delivery
+      operationId: driver.delivery_next_stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+              examples:
+                "":
+                  value:
+                    event: driver.delivery_next_stop
                     order_id: 6QLV55
                     external_order_id: "12345"
                     driver:
