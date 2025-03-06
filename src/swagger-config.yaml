@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Delivery Bot API
-  version: 1.0.0-oas3
+  version: "2"
   description: "**Welcome to DBX's API!**\r\n\r\nThe DBX API allows you to integrate your application or website with the DBX courier network. Whether you need to deliver an order ASAP or within a customer-selected time frame, our API enables you to automate the entire delivery process.\r\n\r\nThis documentation provides the necessary resources, examples, and guidelines to help you create, manage, and monitor deliveries.\r\n\r\nAll requests require the use of a bearer token, which can be created in your portal under Automation > API.\r\n\r\nResources:\r\n<br>\r\n[Postman](https://www.postman.com/dbx-delivery/dbx-api/overview)\r\n<br>\r\n[FAQ](https://dbx.delivery/faq#dev)"
   contact:
     email: webmaster@dbx.delivery
@@ -185,7 +185,6 @@ paths:
                         size: small
               Timeframe order with proof of delivery:
                 value:
-                  external_order_id: "1"
                   pickup:
                     name: John Doe
                     phone: "1234567890"
@@ -200,6 +199,7 @@ paths:
                     required_verification:
                       picture: true
                   delivery:
+                    external_order_id: "1"
                     tip: 200
                     name: Jane Doe
                     phone: (123)123-1234
@@ -1138,7 +1138,6 @@ components:
       x-examples:
         Example 1:
           order_id: IL3YK3
-          external_order_id: "1"
           status: processing
           pickup:
             customer_id: 134
@@ -1187,6 +1186,7 @@ components:
               pickup: true
               delivery: true
               source: API
+            external_order_id: "1"
             required_verification:
               picture: true
               recipient: true
@@ -1267,8 +1267,6 @@ components:
         order_id:
           type: string
           readOnly: true
-        external_order_id:
-          type: string
         status:
           type: string
           readOnly: true
@@ -1292,11 +1290,14 @@ components:
                   properties:
                     picture:
                       type: object
+                      readOnly: true
         delivery:
           allOf:
             - $ref: "#/components/schemas/Customer"
-              type: object
+            - type: object
               properties:
+                external_order_id:
+                  type: string
                 tip:
                   type: integer
                   default: 0
@@ -1316,6 +1317,16 @@ components:
                       type: boolean
                 uploaded_verification:
                   type: object
+                  properties:
+                    picture:
+                      type: object
+                      readOnly: true
+                    recipient:
+                      type: object
+                      readOnly: true
+                    signature:
+                      type: object
+                      readOnly: true
                 items:
                   type: object
                   properties:
@@ -1627,7 +1638,6 @@ components:
     order:
       value:
         order_id: IL3YK3
-        external_order_id: "1"
         status: processing
         pickup:
           customer_id: 134
@@ -1676,6 +1686,7 @@ components:
             pickup: true
             delivery: true
             source: API
+          external_order_id: "1"
           required_verification:
             picture: true
             recipient: true
