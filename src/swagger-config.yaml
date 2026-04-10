@@ -477,7 +477,7 @@ paths:
           $ref: "#/components/responses/422-invalid_params"
         "500":
           $ref: "#/components/responses/500-internal_server_error"
-    put:
+    delete:
       tags:
         - orders
       summary: Cancel an order
