@@ -22,23 +22,137 @@ tags:
   - name: webhooks
     description: All webhooks are sent to a single url and defined by event property
 paths:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # QUOTE
+  # ═══════════════════════════════════════════════════════════════════════════
   /quote:
-    parameters: []
     post:
       tags:
         - quote
       summary: Create a quote
       operationId: post-quote
+      description: >-
+        Validates if the order is serviceable by DBX and returns a quote
+        including fee breakdown and distance. The quoted fee will remain
+        fixed and will not change, regardless of when the order is placed.
+        If no timeframe is provided, the earliest available slot is returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+            examples:
+              Simple ASAP quote (address by street):
+                value:
+                  pickup:
+                    address:
+                      street_address_1: "2049 Broadway"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10023"
+                  delivery:
+                    address:
+                      street_address_1: "14 N Moore St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10013"
+                    items:
+                      - description: bag
+                        quantity: 1
+                    size_category: small
+              Quote with timeframe and dimensions:
+                value:
+                  pickup:
+                    address:
+                      address_id: 940645
+                  delivery:
+                    address:
+                      street_address_1: "300 E 71st St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10021"
+                    items:
+                      - description: keg
+                        quantity: 2
+                        length: 20
+                        width: 15
+                        height: 10
+                        weight: 10
+                  timeframe:
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
+              Quote using customer_id:
+                value:
+                  pickup:
+                    customer_id: 134
+                  delivery:
+                    customer_id: 133
+                    items:
+                      - description: bag
+                        quantity: 1
+                    size_category: small
       responses:
         "200":
           description: OK - Quote returned
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Quote"
+                $ref: "#/components/schemas/QuoteResponse"
               examples:
-                "":
-                  $ref: "#/components/examples/quote"
+                ASAP quote:
+                  value:
+                    timeframe:
+                      service: one_hour
+                      start_time: "2025-03-22T15:00:00.000Z"
+                      end_time: "2025-03-22T16:00:00.000Z"
+                    pickup:
+                      address:
+                        address_id: 940645
+                        formatted: "2049 Broadway, New York, NY 10023"
+                        house_number: "2049"
+                        street_address_1: "2049 Broadway"
+                        street: "Broadway"
+                        city: "New York"
+                        state: "NY"
+                        zip: "10023"
+                        lat: 40.7779
+                        lon: -73.9825
+                        doorman: false
+                    delivery:
+                      address:
+                        address_id: 512381
+                        formatted: "14 N Moore St, New York, NY 10013"
+                        house_number: "14"
+                        street_address_1: "14 N Moore St"
+                        street: "N Moore St"
+                        city: "New York"
+                        state: "NY"
+                        zip: "10013"
+                        lat: 40.7197
+                        lon: -74.0066
+                        doorman: false
+                      tip: 0
+                      size_category: small
+                      measurement_summary:
+                        max_dimension: 16
+                        cubic_feet: 2
+                        total_weight: 60
+                        max_weight: 30
+                        total_quantity: 1
+                      items:
+                        - description: bag
+                          quantity: 1
+                          barcode: "A1B2C3"
+                          barcode_type: QRCODE
+                          measurement: '<30lbs | <16" x <16" x <16"'
+                    distance: 4.72
+                    fee: 835
+                    fee_breakdown:
+                      base: 699
+                      mileage_surcharge: 136
+                      item_surcharge: 0
+                      time_surcharge: 0
         "400":
           $ref: "#/components/responses/400-missing_params"
         "401":
@@ -47,50 +161,19 @@ paths:
           $ref: "#/components/responses/422-invalid_params"
         "500":
           $ref: "#/components/responses/500-internal_server_error"
-      description: "Validates if the order is serviceable by DBX and returns a quote. The quoted price will remain fixed and will not change, regardless of when the order is placed."
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Order"
-            examples:
-              Simple ASAP quote:
-                value:
-                  pickup:
-                    address:
-                      street: 400 E 74 St
-                      zip: "10021"
-                  delivery:
-                    address:
-                      street: 400 E 74 St
-                      zip: "10021"
-                    items:
-                      - description: bag
-                        quantity: 1
-                        size: small
-              Quote with time-frame:
-                value:
-                  pickup:
-                    address:
-                      street: 400 E 74 St
-                      zip: "10021"
-                  delivery:
-                    address:
-                      street: 400 E 74 St
-                      zip: "10021"
-                    items:
-                      - description: bag
-                        quantity: 1
-                        size: small
-                  timeframe:
-                    start_time: "2025-03-22T15:00:00.000Z"
-                    end_time: "2025-03-22T18:00:00.000Z"
+
   "/quote/{order_id}":
     patch:
       tags:
         - quote
       summary: Modify order quote
       operationId: patch-quote
+      description: >-
+        Validates if the updated order is serviceable by DBX and returns
+        a revised quote. Only post fields you wish to update. Changes to
+        the address, items, or timeframe may affect the original fee.
+        The response includes the previous_fee for comparison. Please
+        refer to our FAQ guide for details on allowed updates based on order status.
       parameters:
         - schema:
             type: string
@@ -98,72 +181,81 @@ paths:
           in: path
           required: true
           description: Order id of the delivery OR external_order_id
-      responses:
-        "200":
-          description: OK - Quote returned
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - type: object
-                    properties:
-                      previous_price:
-                        type: integer
-                        readOnly: true
-                  - $ref: "#/components/schemas/Quote"
-              examples:
-                "":
-                  value:
-                    previous_price: 1347
-                    price: 1347
-                    tip: 0
-                    discount:
-                      percentage: 15
-                      original: 1585
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
+              $ref: "#/components/schemas/OrderUpdateRequest"
             examples:
               Updating tip:
                 value:
                   delivery:
                     tip: 250
-              Updating delivery address (only allowed at "processing"):
+              Updating delivery address:
                 value:
                   delivery:
                     address:
-                      street: 400 E 74 St
-                      zip: 10021
-      description: "Validates if the updated order is serviceable by DBX and returns a revised quote. Only post fields you wish to update. Changes to the address, items, or timeframe may affect the original order quote. Please refer to our FAQ guide for details on allowed updates based on the order status."
+                      street_address_1: "400 E 74 St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10021"
+              Updating items:
+                value:
+                  delivery:
+                    items:
+                      - description: box
+                        quantity: 2
+                    size_category: medium
+              Clearing timeframe (sets order to pending_timeframe):
+                value:
+                  timeframe: null
+      responses:
+        "200":
+          description: OK - Revised quote returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetailResponse"
+              examples:
+                Updated quote:
+                  value:
+                    order_id: IL3YK3
+                    fee: 1347
+                    fee_breakdown:
+                      previous_fee: 1200
+                      base: 699
+                      mileage_surcharge: 248
+                      item_surcharge: 400
+                      time_surcharge: 0
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
+        "404":
+          $ref: "#/components/responses/404-not_found"
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ORDERS
+  # ═══════════════════════════════════════════════════════════════════════════
   /orders:
     post:
       tags:
         - orders
       summary: Create an order
       operationId: post-order
-      responses:
-        "200":
-          description: OK - Order successfully created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Order"
-              examples:
-                "":
-                  $ref: "#/components/examples/order"
-        "401":
-          $ref: "#/components/responses/401-authentication_error"
-        "422":
-          $ref: "#/components/responses/422-invalid_params"
-        "500":
-          $ref: "#/components/responses/500-internal_server_error"
+      description: >-
+        Creates a new delivery between two addresses. If no timeframe is
+        provided, the order is created with status `pending_timeframe`
+        and must be updated with a timeframe before it can be dispatched.
+        When a timeframe is provided, the order is created with status `processing`.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
+              $ref: "#/components/schemas/OrderCreateRequest"
             examples:
               Simple ASAP order:
                 value:
@@ -171,50 +263,49 @@ paths:
                     name: John Doe
                     phone: "1234567890"
                     address:
-                      street: 2049 Broadway
-                      zip: 10023
+                      street_address_1: "2049 Broadway"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10023"
                   delivery:
                     name: Jane Doe
-                    phone: (123)123-1234
+                    phone: "1231231234"
                     address:
-                      street: 14 N Moore St
-                      zip: 10013
+                      street_address_1: "14 N Moore St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10013"
                     items:
                       - description: bag
                         quantity: 1
-                        size: small
-              Timeframe order with proof of delivery:
+                    size_category: small
+              Timeframe order with full options:
                 value:
                   pickup:
                     name: John Doe
                     phone: "1234567890"
-                    apt: ground level
-                    note: Please pickup at front desk
-                    external_customer_id: "1"
+                    apt: "ground level"
+                    note: "Please pickup at front desk"
                     address:
-                      street: 2049 Broadway
-                      city: New York
-                      state: NY
-                      zip: 10023
+                      street_address_1: "2049 Broadway"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10023"
                     required_verification:
                       picture: true
+                      barcode: false
                   delivery:
-                    external_order_id: "1"
-                    tip: 200
                     name: Jane Doe
-                    phone: (123)123-1234
-                    apt: 47A
-                    note: Use service entrance on Jane St
-                    external_customer_id: "2"
+                    phone: "1231231234"
+                    apt: "47A"
+                    note: "Use service entrance on Jane St"
+                    tip: 200
+                    external_order_id: "MY-ORDER-123"
                     address:
-                      street: 14 N Moore St
-                      city: New York
-                      state: NY
-                      zip: 10013
-                    required_verification:
-                      picture: true
-                      signature: true
-                      recipient: true
+                      street_address_1: "14 N Moore St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10013"
                     items:
                       - description: keg
                         quantity: 2
@@ -228,39 +319,66 @@ paths:
                         width: 15
                         height: 10
                         weight: 10
+                    required_verification:
+                      picture: true
+                      signature: true
+                      recipient: true
+                      barcode: false
+                      identification: false
+                      pin: false
                   timeframe:
                     start_time: "2025-03-22T15:00:00.000Z"
                     end_time: "2025-03-22T18:00:00.000Z"
-      description: Creates a new delivery between two addresses.
-  "/orders/{order_id}":
-    get:
-      tags:
-        - orders
-      summary: Get an order
+                    pickup_ready_by: "2025-03-22T14:30:00.000Z"
+                    delivery_deadline: "2025-03-22T18:30:00.000Z"
+              Order using existing customer_id:
+                value:
+                  pickup:
+                    customer_id: 134
+                  delivery:
+                    customer_id: 133
+                    tip: 200
+                    items:
+                      - description: bag
+                        quantity: 1
+                    size_category: small
+                  timeframe:
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
+              Order without timeframe (pending):
+                value:
+                  pickup:
+                    name: John Doe
+                    phone: "1234567890"
+                    address:
+                      address_id: 940645
+                  delivery:
+                    name: Jane Doe
+                    phone: "1231231234"
+                    address:
+                      address_id: 512381
+                    items:
+                      - description: bag
+                        quantity: 1
+                    size_category: small
       responses:
         "200":
-          description: Ok - Successfully returned order details
+          description: OK - Order successfully created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderDetailResponse"
               examples:
-                "":
-                  $ref: "#/components/examples/order"
+                Created order:
+                  $ref: "#/components/examples/order_detail"
         "401":
           $ref: "#/components/responses/401-authentication_error"
-        "404":
-          $ref: "#/components/responses/404-not_found"
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
         "500":
           $ref: "#/components/responses/500-internal_server_error"
-      operationId: get-order
-      description: "Retrieves the details of an existing order, specified by the order_id or external_order_id in the URL."
-      parameters:
-        - schema:
-            type: string
-          in: query
-          name: order_id
-          description: Order id of the delivery OR external_order_id
+
+  "/orders/{order_id}":
     parameters:
       - schema:
           type: string
@@ -268,21 +386,89 @@ paths:
         in: path
         required: true
         description: Order id of the delivery OR external_order_id
-    patch:
+    get:
       tags:
         - orders
-      summary: Modify an Order
-      operationId: patch-order-order_id
+      summary: Get an order
+      operationId: get-order
+      description: >-
+        Retrieves the full details of an existing order, specified by the
+        order_id or external_order_id in the URL.
       responses:
         "200":
-          description: Ok - Successfully updated order
+          description: OK - Successfully returned order details
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderDetailResponse"
               examples:
-                "":
-                  $ref: "#/components/examples/order"
+                Order detail:
+                  $ref: "#/components/examples/order_detail"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
+        "404":
+          $ref: "#/components/responses/404-not_found"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
+    patch:
+      tags:
+        - orders
+      summary: Modify an order
+      operationId: patch-order
+      description: >-
+        Modifies an existing delivery order, specified by the order_id or
+        external_order_id in the URL. Only post fields you wish to update.
+        Setting `timeframe` to `null` moves the order to `pending_timeframe` status.
+        Please refer to our FAQ guide for details on allowed updates based on order status.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderUpdateRequest"
+            examples:
+              Modify timeframe:
+                value:
+                  timeframe:
+                    start_time: "2025-03-22T15:00:00.000Z"
+                    end_time: "2025-03-22T18:00:00.000Z"
+              Modify delivery info:
+                value:
+                  delivery:
+                    name: "Jane Smith"
+                    phone: "9175551234"
+                    note: "Leave with doorman"
+                    apt: "12B"
+              Modify delivery address:
+                value:
+                  delivery:
+                    address:
+                      street_address_1: "400 E 74 St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10021"
+              Update items:
+                value:
+                  delivery:
+                    items:
+                      - description: box
+                        quantity: 3
+                        length: 12
+                        width: 12
+                        height: 12
+                        weight: 15
+              Set to pending_timeframe:
+                value:
+                  timeframe: null
+      responses:
+        "200":
+          description: OK - Successfully updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetailResponse"
+              examples:
+                Updated order:
+                  $ref: "#/components/examples/order_detail"
         "401":
           $ref: "#/components/responses/401-authentication_error"
         "404":
@@ -291,191 +477,201 @@ paths:
           $ref: "#/components/responses/422-invalid_params"
         "500":
           $ref: "#/components/responses/500-internal_server_error"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Order"
-            examples:
-              Modify timeframe:
-                value:
-                  timeframe:
-                    service: 2_hour
-                    start_time: "2019-08-24T14:15:22Z"
-                    end_time: "2019-08-24T14:15:22Z"
-              Modify delivery location:
-                value:
-                  delivery:
-                    name: string
-                    phone: string
-                    note: string
-                    location:
-                      access_code: string
-                      street_address_1: string
-                      street_address_2: string
-                      city: string
-                      zip: string
-                      state: string
-      description: "Modifies an existing delivery order, specified by the order_id or external_order_id in the URL. Only post fields you wish to update. Please refer to our FAQ guide for details on allowed updates based on the order status."
     put:
       tags:
         - orders
-      summary: Cancel an Order
-      operationId: put-order-order_id
+      summary: Cancel an order
+      operationId: put-order
+      description: >-
+        Cancels a previously placed order, specified by the order_id in the URL.
+        Only orders with status `pending_timeframe`, `processing`, `assigned`,
+        or `arrived_at_pickup` can be canceled. If the order is still in
+        `processing` status, the fee is zeroed out.
       responses:
         "200":
-          description: Ok - Successfully canceled order
+          description: OK - Successfully canceled order
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Order"
-              examples:
-                "":
-                  $ref: "#/components/examples/order"
+                $ref: "#/components/schemas/OrderDetailResponse"
         "404":
           $ref: "#/components/responses/404-not_found"
-      description: "Cancels a previously placed order, specified by the order_id in the URL."
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SLOTS
+  # ═══════════════════════════════════════════════════════════════════════════
   /slots:
     post:
       tags:
         - slots
       summary: Get earliest available slot
       operationId: post-slot
+      description: >-
+        Retrieves the earliest available time slot for a delivery between
+        two addresses. Returns a single slot grouped by service type.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SlotsRequest"
+            examples:
+              By address:
+                value:
+                  pickup:
+                    address:
+                      street_address_1: "2049 Broadway"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10023"
+                  delivery:
+                    address:
+                      street_address_1: "14 N Moore St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10013"
+              By address_id:
+                value:
+                  pickup:
+                    address:
+                      address_id: 940645
+                  delivery:
+                    address:
+                      address_id: 512381
       responses:
         "200":
           description: OK - Earliest timeframe returned
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Timeframe"
+                $ref: "#/components/schemas/SlotsResponse"
               examples:
-                "":
+                Earliest slot:
                   value:
-                    service: 3-hour
-                    start_time: "2025-03-22T15:00:00.000Z"
-                    end_time: "2025-03-22T18:00:00.000Z"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Order"
-            examples:
-              Example 1:
-                $ref: "#/components/examples/order"
-      description: Retrieves the earliest available time slot for a delivery between two addresses.
-  "/slots/{date}":
-    parameters:
-      - schema:
-          type: string
-        name: date
-        in: path
-        required: true
-        description: Date to return available slots for (not specifying a date returns first available slot)
-    post:
-      tags:
-        - slots
-      summary: Get available slots for date
-      operationId: post-slots-date
-      responses:
-        "200":
-          description: OK - Available timeframes for specified date returned
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Slots"
-              examples:
-                "":
-                  value:
-                    - service: 1-hour
+                    - service: one_hour
                       slots:
-                        - start_time: "2025-03-01T14:00:00.000Z"
-                          end_time: "2025-03-01T15:00:00.000Z"
-                        - start_time: "2025-03-01T15:00:00.000Z"
-                          end_time: "2025-03-01T16:00:00.000Z"
-                        - start_time: "2025-03-01T16:00:00.000Z"
-                          end_time: "2025-03-01T17:00:00.000Z"
-                        - start_time: "2025-03-01T17:00:00.000Z"
-                          end_time: "2025-03-01T18:00:00.000Z"
-                        - start_time: "2025-03-01T18:00:00.000Z"
-                          end_time: "2025-03-01T19:00:00.000Z"
-                        - start_time: "2025-03-01T19:00:00.000Z"
-                          end_time: "2025-03-01T20:00:00.000Z"
-                        - start_time: "2025-03-01T20:00:00.000Z"
-                          end_time: "2025-03-01T21:00:00.000Z"
-                        - start_time: "2025-03-01T21:00:00.000Z"
-                          end_time: "2025-03-01T22:00:00.000Z"
-                        - start_time: "2025-03-01T22:00:00.000Z"
-                          end_time: "2025-03-01T23:00:00.000Z"
-                        - start_time: "2025-03-01T23:00:00.000Z"
-                          end_time: "2025-03-02T00:00:00.000Z"
-                    - service: 3-hour
-                      slots:
-                        - start_time: "2025-03-01T15:00:00.000Z"
-                          end_time: "2025-03-01T18:00:00.000Z"
-                        - start_time: "2025-03-01T16:00:00.000Z"
-                          end_time: "2025-03-01T19:00:00.000Z"
-                        - start_time: "2025-03-01T17:00:00.000Z"
-                          end_time: "2025-03-01T20:00:00.000Z"
-                        - start_time: "2025-03-01T18:00:00.000Z"
-                          end_time: "2025-03-01T21:00:00.000Z"
-                        - start_time: "2025-03-01T19:00:00.000Z"
-                          end_time: "2025-03-01T22:00:00.000Z"
-                        - start_time: "2025-03-01T20:00:00.000Z"
-                          end_time: "2025-03-01T23:00:00.000Z"
-                        - start_time: "2025-03-01T21:00:00.000Z"
-                          end_time: "2025-03-02T00:00:00.000Z"
-                        - start_time: "2025-03-01T22:00:00.000Z"
-                          end_time: "2025-03-02T01:00:00.000Z"
-                        - start_time: "2025-03-01T23:00:00.000Z"
-                          end_time: "2025-03-02T02:00:00.000Z"
-                    - service: same-day
-                      slots:
-                        - start_time: "2025-03-01T19:00:00.000Z"
-                          end_time: "2025-03-02T00:00:00.000Z"
+                        - start_time: "2025-03-22T15:00:00.000Z"
+                          end_time: "2025-03-22T16:00:00.000Z"
+                          pickup_ext: 30
+                          delivery_ext: 30
+                          pickup_ready_by: "2025-03-22T14:30:00.000Z"
+                          delivery_deadline: "2025-03-22T16:30:00.000Z"
+                    - service: three_hour
+                      slots: []
+                    - service: same_day
+                      slots: []
         "401":
           $ref: "#/components/responses/401-authentication_error"
         "422":
           $ref: "#/components/responses/422-invalid_params"
         "500":
           $ref: "#/components/responses/500-internal_server_error"
-      description: Returns a list of available time slots between two addresses on the specified date.
+
+  "/slots/{date}":
+    parameters:
+      - schema:
+          type: string
+          example: "03-22-2025"
+        name: date
+        in: path
+        required: true
+        description: "Date to return available slots for in MM-DD-YYYY format"
+    post:
+      tags:
+        - slots
+      summary: Get available slots for date
+      operationId: post-slots-date
+      description: >-
+        Returns a list of available time slots between two addresses on the
+        specified date, grouped by service type (one_hour, three_hour, same_day).
+        Slot availability depends on the distance between addresses and operating
+        hours (9 AM – 7 PM ET). Each slot includes pickup/delivery extension
+        times based on your account settings.
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Order"
+              $ref: "#/components/schemas/SlotsRequest"
             examples:
-              "":
+              By address:
                 value:
                   pickup:
                     address:
-                      street: 400 E 74 St
-                      zip: "10021"
+                      street_address_1: "2049 Broadway"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10023"
                   delivery:
                     address:
-                      street: 400 E 74 St
-                      zip: "10021"
+                      street_address_1: "14 N Moore St"
+                      city: "New York"
+                      state: "NY"
+                      zip: "10013"
+      responses:
+        "200":
+          description: OK - Available timeframes for specified date returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlotsResponse"
+              examples:
+                Available slots:
+                  value:
+                    - service: one_hour
+                      slots:
+                        - start_time: "2025-03-22T14:00:00.000Z"
+                          end_time: "2025-03-22T15:00:00.000Z"
+                          pickup_ext: 30
+                          delivery_ext: 30
+                          pickup_ready_by: "2025-03-22T13:30:00.000Z"
+                          delivery_deadline: "2025-03-22T15:30:00.000Z"
+                        - start_time: "2025-03-22T15:00:00.000Z"
+                          end_time: "2025-03-22T16:00:00.000Z"
+                          pickup_ext: 30
+                          delivery_ext: 30
+                          pickup_ready_by: "2025-03-22T14:30:00.000Z"
+                          delivery_deadline: "2025-03-22T16:30:00.000Z"
+                    - service: three_hour
+                      slots:
+                        - start_time: "2025-03-22T15:00:00.000Z"
+                          end_time: "2025-03-22T18:00:00.000Z"
+                          pickup_ext: 30
+                          delivery_ext: 30
+                          pickup_ready_by: "2025-03-22T14:30:00.000Z"
+                          delivery_deadline: "2025-03-22T18:30:00.000Z"
+                    - service: same_day
+                      slots:
+                        - start_time: "2025-03-22T19:00:00.000Z"
+                          end_time: "2025-03-23T00:00:00.000Z"
+                          pickup_ext: 30
+                          delivery_ext: 30
+                          pickup_ready_by: "2025-03-22T18:30:00.000Z"
+                          delivery_deadline: "2025-03-23T00:30:00.000Z"
+        "401":
+          $ref: "#/components/responses/401-authentication_error"
+        "422":
+          $ref: "#/components/responses/422-invalid_params"
+        "500":
+          $ref: "#/components/responses/500-internal_server_error"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # WEBHOOKS
+  # ═══════════════════════════════════════════════════════════════════════════
   /order.processing:
-    parameters: []
     post:
       tags:
         - webhooks
       summary: Order processing
       operationId: order.processing
+      description: Sent when an order enters the `processing` status (e.g. newly created with a timeframe, or a `pending_timeframe` order that just received one).
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - type: object
-                    properties:
-                      event:
-                        type: string
-                        x-stoplight:
-                          id: nd1jvyz0t57rt
-                  - $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderWebhook"
               examples:
                 "":
                   value:
@@ -485,348 +681,138 @@ paths:
                     status: processing
                     pickup:
                       customer_id: 1
-                      phone: 1234567890
+                      phone: "1234567890"
+                      phone_formatted: "+1 (123) 456-7890"
                       name: West Side Wines
                       apt: "1"
-                      external_customer_id: null
-                      phone_formatted: (123) 456-7890
+                      access_code: null
                       note: ""
                       eta: null
                       address:
                         address_id: 783607
                         formatted: "1305 York Ave, New York, NY 10021"
-                        street: 1305 York Ave
+                        street_address_1: "1305 York Ave"
+                        street: "York Ave"
                         city: New York
                         state: NY
                         zip: "10021"
                         lat: 40.7654
                         lon: -73.9551
-                        pickup: true
-                        delivery: true
-                        source: API
                       required_verification:
                         picture: true
+                        barcode: false
                       uploaded_verification:
-                        picture: {}
+                        picture: null
+                        barcode: []
                     delivery:
                       customer_id: 2
-                      phone: 2147483647
+                      phone: "2147483647"
+                      phone_formatted: "+1 (214) 748-3647"
                       name: Olivia Thompson
                       apt: ""
-                      external_customer_id: null
-                      phone_formatted: (214) 748-3647
+                      access_code: null
                       note: ""
                       eta: null
                       address:
                         address_id: 863611
-                        formatted: "300 E 71 St, New York, NY 10021"
-                        street: 300 E 71st St
+                        formatted: "300 E 71st St, New York, NY 10021"
+                        street_address_1: "300 E 71st St"
+                        street: "E 71st St"
                         city: New York
                         state: NY
                         zip: "10021"
                         lat: 40.7679
                         lon: -73.9585
-                        pickup: true
-                        delivery: true
-                        source: API
                       required_verification:
                         picture: false
+                        barcode: false
                         recipient: false
                         signature: false
+                        identification: false
+                        pin: false
                       uploaded_verification:
-                        picture: {}
-                        recipient: {}
-                        signature: {}
+                        picture: null
+                        barcode: []
+                        recipient: null
+                        signature: null
+                        identification: null
+                        pin: null
+                      tip: 300
+                      size_category: large
                       items:
-                        max_weight: 100
-                        max_dimension: 25
-                        total_quantity: 1
-                        total_weight: 100
-                        cubic_feet: 0.93
-                        exact: true
-                        size: large
-                        description: Fits in car trunk
-                        additional: 3000
-                        items:
-                          - description: keg
-                            quantity: 1
-                            length: 8
-                            width: 8
-                            height: 25
-                            weight: 100
-                            measurement: 100lbs | 8” x 8” x 25”
-                            size: large
+                        - description: keg
+                          quantity: 1
+                          length: 8
+                          width: 8
+                          height: 25
+                          weight: 100
+                          measurement: '100lbs | 8" x 8" x 25"'
                     timeframe:
-                      service: 3-hour
+                      service: three_hour
                       start_time: "2025-01-27T15:00:00.000Z"
                       end_time: "2025-01-27T18:00:00.000Z"
                     created_at: "2025-01-27T15:00:00.000Z"
                     last_updated: "2025-01-27T15:00:00.000Z"
-                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    price: 7
-                    tip: 300
+                    tracking_url: "https://track.dbx.delivery/SEWG5J"
+                    fee: 2199
+                    fee_breakdown:
+                      base: 699
+                      mileage_surcharge: 0
+                      item_surcharge: 1500
+                      time_surcharge: 0
                     driver: {}
                     logs:
-                      - log_id: 2
-                        log: arrived_at_delivery
-                        by: driver
-                        datetime: "2025-01-27T15:55:00.000Z"
+                      - log: processing
+                        datetime: "2025-01-27T15:00:00.000Z"
                         is_completed: true
-                      - log_id: 1
-                        log: arrived_at_pickup
-                        by: driver
-                        datetime: "2025-01-27T15:12:00.000Z"
-                        is_completed: true
-                    date_time: "2024-04-12T03:59:05.000Z"
+
   /order.updated:
     post:
       tags:
         - webhooks
       summary: Order information updated
       operationId: order.updated
+      description: Sent when order information is updated (address, timeframe, items, etc.).
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - type: object
-                    properties:
-                      event:
-                        type: string
-                        x-stoplight:
-                          id: d0gvdtd6zlhtc
-                  - $ref: "#/components/schemas/Order"
-              examples:
-                "":
-                  value:
-                    event: order.updated
-                    order_id: SEWG5J
-                    external_order_id: null
-                    status: processing
-                    pickup:
-                      customer_id: 1
-                      phone: 1234567890
-                      name: West Side Wines
-                      apt: "1"
-                      external_customer_id: null
-                      phone_formatted: (123) 456-7890
-                      note: ""
-                      eta: null
-                      address:
-                        address_id: 783607
-                        formatted: "1305 York Ave, New York, NY 10021"
-                        street: 1305 York Ave
-                        city: New York
-                        state: NY
-                        zip: "10021"
-                        lat: 40.7654
-                        lon: -73.9551
-                        pickup: true
-                        delivery: true
-                        source: API
-                      required_verification:
-                        picture: true
-                      uploaded_verification:
-                        picture: {}
-                    delivery:
-                      customer_id: 2
-                      phone: 2147483647
-                      name: Olivia Thompson
-                      apt: ""
-                      external_customer_id: null
-                      phone_formatted: (214) 748-3647
-                      note: ""
-                      eta: null
-                      address:
-                        address_id: 863611
-                        formatted: "300 E 71 St, New York, NY 10021"
-                        street: 300 E 71st St
-                        city: New York
-                        state: NY
-                        zip: "10021"
-                        lat: 40.7679
-                        lon: -73.9585
-                        pickup: true
-                        delivery: true
-                        source: API
-                      required_verification:
-                        picture: false
-                        recipient: false
-                        signature: false
-                      uploaded_verification:
-                        picture: {}
-                        recipient: {}
-                        signature: {}
-                      items:
-                        max_weight: 100
-                        max_dimension: 25
-                        total_quantity: 1
-                        total_weight: 100
-                        cubic_feet: 0.93
-                        exact: true
-                        size: large
-                        description: Fits in car trunk
-                        additional: 3000
-                        items:
-                          - description: keg
-                            quantity: 1
-                            length: 8
-                            width: 8
-                            height: 25
-                            weight: 100
-                            measurement: 100lbs | 8” x 8” x 25”
-                            size: large
-                    timeframe:
-                      service: 3-hour
-                      start_time: "2025-01-27T15:00:00.000Z"
-                      end_time: "2025-01-27T18:00:00.000Z"
-                    created_at: "2025-01-27T15:00:00.000Z"
-                    last_updated: "2025-01-27T15:00:00.000Z"
-                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    price: 7
-                    tip: 300
-                    driver: {}
-                    logs:
-                      - log_id: 2
-                        log: arrived_at_delivery
-                        by: driver
-                        datetime: "2025-01-27T15:55:00.000Z"
-                        is_completed: true
-                      - log_id: 1
-                        log: arrived_at_pickup
-                        by: driver
-                        datetime: "2025-01-27T15:12:00.000Z"
-                        is_completed: true
-                    date_time: "2024-04-12T03:59:05.000Z"
-    parameters: []
+                $ref: "#/components/schemas/OrderWebhook"
+
   /order.canceled:
-    parameters: []
     post:
       tags:
         - webhooks
-      summary: Order cancelled by user
+      summary: Order cancelled
       operationId: order.canceled
+      description: Sent when an order is cancelled by the user or admin.
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - type: object
-                    properties:
-                      event:
-                        type: string
-                        x-stoplight:
-                          id: xfwa7wjh9ewf4
-                  - $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderWebhook"
+
+  /driver.assigned:
+    post:
+      tags:
+        - webhooks
+      summary: Driver assigned to order
+      operationId: driver.assigned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: order.canceled
-                    order_id: SEWG5J
-                    external_order_id: null
-                    status: processing
-                    pickup:
-                      customer_id: 1
-                      phone: 1234567890
-                      name: West Side Wines
-                      apt: "1"
-                      external_customer_id: null
-                      phone_formatted: (123) 456-7890
-                      note: ""
-                      eta: null
-                      address:
-                        address_id: 783607
-                        formatted: "1305 York Ave, New York, NY 10021"
-                        street: 1305 York Ave
-                        city: New York
-                        state: NY
-                        zip: "10021"
-                        lat: 40.7654
-                        lon: -73.9551
-                        pickup: true
-                        delivery: true
-                        source: API
-                      required_verification:
-                        picture: true
-                      uploaded_verification:
-                        picture: {}
-                    delivery:
-                      customer_id: 2
-                      phone: 2147483647
-                      name: Olivia Thompson
-                      apt: ""
-                      external_customer_id: null
-                      phone_formatted: (214) 748-3647
-                      note: ""
-                      eta: null
-                      address:
-                        address_id: 863611
-                        formatted: "300 E 71 St, New York, NY 10021"
-                        street: 300 E 71st St
-                        city: New York
-                        state: NY
-                        zip: "10021"
-                        lat: 40.7679
-                        lon: -73.9585
-                        pickup: true
-                        delivery: true
-                        source: API
-                      required_verification:
-                        picture: false
-                        recipient: false
-                        signature: false
-                      uploaded_verification:
-                        picture: {}
-                        recipient: {}
-                        signature: {}
-                      items:
-                        max_weight: 100
-                        max_dimension: 25
-                        total_quantity: 1
-                        total_weight: 100
-                        cubic_feet: 0.93
-                        exact: true
-                        size: large
-                        description: Fits in car trunk
-                        additional: 3000
-                        items:
-                          - description: keg
-                            quantity: 1
-                            length: 8
-                            width: 8
-                            height: 25
-                            weight: 100
-                            measurement: 100lbs | 8” x 8” x 25”
-                            size: large
-                    timeframe:
-                      service: 3-hour
-                      start_time: "2025-01-27T15:00:00.000Z"
-                      end_time: "2025-01-27T18:00:00.000Z"
-                    created_at: "2025-01-27T15:00:00.000Z"
-                    last_updated: "2025-01-27T15:00:00.000Z"
-                    pickup_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    delivery_tracking_url: "https://track.dbx.delivery/?token={{vault:json-web-token}}"
-                    price: 7
-                    tip: 300
-                    driver: {}
-                    logs:
-                      - log_id: 2
-                        log: arrived_at_delivery
-                        by: driver
-                        datetime: "2025-01-27T15:55:00.000Z"
-                        is_completed: true
-                      - log_id: 1
-                        log: arrived_at_pickup
-                        by: driver
-                        datetime: "2025-01-27T15:12:00.000Z"
-                        is_completed: true
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.location:
     post:
       tags:
@@ -839,52 +825,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.location
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
-    parameters: []
-  /driver.assigned:
-    parameters: []
-    post:
-      tags:
-        - webhooks
-      summary: Driver assigned to order
-      operationId: driver.assigned
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Webhook"
-              examples:
-                "":
-                  value:
-                    event: driver.assigned
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.pickup_next_stop:
-    parameters: []
     post:
       tags:
         - webhooks
@@ -896,27 +842,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.pickup_next_stop
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.arrived_at_pickup:
-    parameters: []
     post:
       tags:
         - webhooks
-      summary: Driver arrived at order pickup
+      summary: Driver arrived at pickup
       operationId: driver.arrived_at_pickup
       responses:
         "200":
@@ -924,27 +859,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.arrived_at_pickup
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.picked_up:
-    parameters: []
     post:
       tags:
         - webhooks
-      summary: Driver picked-up order
+      summary: Driver picked up order
       operationId: driver.picked_up
       responses:
         "200":
@@ -952,23 +876,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.picked_up
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.delivery_next_stop:
-    parameters: []
     post:
       tags:
         - webhooks
@@ -980,27 +893,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.delivery_next_stop
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.arrived_at_delivery:
-    parameters: []
     post:
       tags:
         - webhooks
-      summary: Driver arrived at order delivery
+      summary: Driver arrived at delivery
       operationId: driver.arrived_at_delivery
       responses:
         "200":
@@ -1008,23 +910,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.arrived_at_delivery
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.undeliverable:
-    parameters: []
     post:
       tags:
         - webhooks
@@ -1036,23 +927,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.undeliverable
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.delivered:
-    parameters: []
     post:
       tags:
         - webhooks
@@ -1064,23 +944,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.delivered
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
   /driver.returned:
-    parameters: []
     post:
       tags:
         - webhooks
@@ -1092,434 +961,950 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Webhook"
+                $ref: "#/components/schemas/DriverWebhook"
               examples:
                 "":
-                  value:
-                    event: driver.returned
-                    order_id: 6QLV55
-                    external_order_id: "12345"
-                    driver:
-                      name: John Doe
-                      phone: "+12324231132"
-                      vehicle: Toyota Highlander
-                      location:
-                        lat: "40.735073"
-                        lon: "-73.994431"
-                    date_time: "2024-04-12T03:59:05.000Z"
+                  $ref: "#/components/examples/driver_webhook"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════════════════════════════════════════
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
-    Quote:
-      type: object
-      x-examples:
-        Example 1:
-          $ref: "#/components/examples/quote"
-      properties:
-        price:
-          type: integer
-          readOnly: true
-        tip:
-          type: integer
-          readOnly: true
-        discount:
-          type: object
-          properties:
-            percentage:
-              type: integer
-              readOnly: true
-            original:
-              type: integer
-              readOnly: true
-        timeframe:
-          $ref: "#/components/schemas/Timeframe"
-      title: ""
-    Order:
-      type: object
-      x-examples:
-        Example 1:
-          order_id: IL3YK3
-          status: processing
-          pickup:
-            customer_id: 134
-            phone: 1234567890
-            name: John Doe
-            apt: ground level
-            external_customer_id: "1"
-            phone_formatted: (123) 456-7890
-            note: Please pickup at front desk
-            eta: null
-            address:
-              address_id: 940645
-              formatted: "2049 Broadway, New York, NY 10023"
-              street: 2049 Broadway
-              city: New York
-              state: NY
-              zip: "10023"
-              lat: 40.7779
-              lon: -73.9825
-              pickup: true
-              delivery: true
-              source: API
-            required_verification:
-              picture: true
-            uploaded_verification:
-              picture: {}
-          delivery:
-            tip: 0
-            customer_id: 133
-            phone: 1231231234
-            name: Jane Doe
-            apt: 47A
-            external_customer_id: "2"
-            phone_formatted: (123) 123-1234
-            note: Use service entrance on Jane St
-            eta: null
-            address:
-              address_id: 512381
-              formatted: "14 N Moore St, New York, NY 10013"
-              street: 14 N Moore St
-              city: New York
-              state: NY
-              zip: "10013"
-              lat: 40.7197
-              lon: -74.0066
-              pickup: true
-              delivery: true
-              source: API
-            external_order_id: "1"
-            required_verification:
-              picture: true
-              recipient: true
-              signature: true
-            uploaded_verification:
-              picture: {}
-              recipient: {}
-              signature: {}
-            items:
-              max_weight: 10
-              max_dimension: 20
-              total_quantity: 3
-              total_weight: 20
-              cubic_feet: 1.74
-              exact: true
-              size: medium
-              description: Fits in backseat
-              additional: 700
-              items:
-                - description: keg
-                  quantity: 2
-                  length: 20
-                  width: 15
-                  height: 10
-                  weight: 10
-                  measurement: 10lbs | 20” x 15” x 10”
-                  size: medium
-                - description: tripod
-                  quantity: 1
-                  length: 20
-                  width: 15
-                  height: 10
-                  weight: 10
-                  measurement: 10lbs | 20” x 15” x 10”
-                  size: medium
-          timeframe:
-            service: 3-hour
-            start_time: "2025-03-22T15:00:00.000Z"
-            end_time: "2025-03-22T18:00:00.000Z"
-          created_at: "2025-02-25T20:09:31.000Z"
-          last_updated: "2025-02-25T20:09:31.000Z"
-          pickup_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJwaWNrdXAiLCJpYXQiOjE3NDA1ODcwNTAsImV4cCI6MTc3NjU4NzA1MH0.7O9gMQ2_GEN5mrPH4aTezOW_U4Uu6vLRiZuzhmgWKvw"
-          delivery_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJkZWxpdmVyeSIsImlhdCI6MTc0MDU4NzA1MCwiZXhwIjoxNzc2NTg3MDUwfQ.dqADoalSGreamn8yDs8ke_0yJl4AEdmf6cB7denFWuI"
-          price: 1347
-          driver: {}
-          logs:
-            - log: delivered
-              datetime:
-                start: "2025-03-22T15:30:00.000Z"
-                end: "2025-03-22T18:05:00.000Z"
-              is_completed: false
-            - log: arrived_at_delivery
-              datetime:
-                start: "2025-03-22T15:30:00.000Z"
-                end: "2025-03-22T18:00:00.000Z"
-              is_completed: false
-            - log: picked_up
-              datetime:
-                start: "2025-03-22T14:30:00.000Z"
-                end: "2025-03-22T17:30:00.000Z"
-              is_completed: false
-            - log: arrived_at_pickup
-              datetime:
-                start: "2025-03-22T14:30:00.000Z"
-                end: "2025-03-22T17:30:00.000Z"
-              is_completed: false
-            - log: assigned
-              datetime:
-                start: "2025-03-22T14:20:00.000Z"
-                end: "2025-03-22T17:30:00.000Z"
-              is_completed: false
-            - log_id: 23
-              log: processing
-              by: user
-              datetime: "2025-02-25T20:09:31.000Z"
-              is_completed: true
-      properties:
-        order_id:
-          type: string
-          readOnly: true
-        status:
-          type: string
-          readOnly: true
-        pickup:
-          allOf:
-            - $ref: "#/components/schemas/Customer"
-            - type: object
-              properties:
-                eta:
-                  type: string
-                  format: date-time
-                  default: null
-                  readOnly: true
-                required_verification:
-                  type: object
-                  properties:
-                    picture:
-                      type: boolean
-                uploaded_verification:
-                  type: object
-                  properties:
-                    picture:
-                      type: object
-                      readOnly: true
-        delivery:
-          allOf:
-            - $ref: "#/components/schemas/Customer"
-            - type: object
-              properties:
-                external_order_id:
-                  type: string
-                tip:
-                  type: integer
-                  default: 0
-                eta:
-                  type: string
-                  format: date-time
-                  default: null
-                  readOnly: true
-                required_verification:
-                  type: object
-                  properties:
-                    picture:
-                      type: boolean
-                    recipient:
-                      type: boolean
-                    signature:
-                      type: boolean
-                uploaded_verification:
-                  type: object
-                  properties:
-                    picture:
-                      type: object
-                      readOnly: true
-                    recipient:
-                      type: object
-                      readOnly: true
-                    signature:
-                      type: object
-                      readOnly: true
-                items:
-                  type: object
-                  properties:
-                    max_weight:
-                      type: string
-                    items:
-                      $ref: "#/components/schemas/Items"
-        timeframe:
-          $ref: "#/components/schemas/Timeframe"
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        last_updated:
-          type: string
-          readOnly: true
-        pickup_tracking_url:
-          type: string
-          readOnly: true
-        delivery_tracking_url:
-          type: string
-          readOnly: true
-        price:
-          type: integer
-          readOnly: true
-        driver:
-          type: object
-          properties:
-            name:
-              type: string
-              readOnly: true
-        logs:
-          type: array
-          items:
-            type: object
-            properties:
-              log:
-                type: string
-              datetime:
-                type: string
-              is_completed:
-                type: boolean
-              log_id:
-                type: integer
-              by:
-                type: string
-    Timeframe:
-      type: object
-      x-examples:
-        Example:
-          service: 1_hour
-          start_time: "2023-11-22T21:00:00Z"
-          end_time: "2023-11-22T22:00:00Z"
-      properties:
-        service:
-          enum:
-            - 1-hour
-            - 3-hour
-            - same-day
-          readOnly: true
-        start_time:
-          type: string
-          format: date-time
-        end_time:
-          type: string
-          format: date-time
-    Items:
-      type: array
-      items:
-        type: object
-        properties:
-          description:
-            type: string
-          quantity:
-            type: integer
-          length:
-            type: integer
-          width:
-            type: integer
-          height:
-            type: integer
-          weight:
-            type: integer
-          measurement:
-            type: string
-          size:
-            type: string
-      x-examples:
-        Example 1:
-          - description: keg
-            quantity: 2
-            length: 20
-            width: 15
-            height: 10
-            weight: 10
-            measurement: 10lbs | 20” x 15” x 10”
-            size: medium
-    Customer:
-      type: object
-      x-examples:
-        Example 1:
-          customer_id: 134
-          phone: 1234567890
-          name: John Doe
-          apt: ground level
-          external_customer_id: "1"
-          phone_formatted: (123) 456-7890
-          note: Please pickup at front desk
-          address:
-            address_id: 940645
-            formatted: "2049 Broadway, New York, NY 10023"
-            street: 2049 Broadway
-            city: New York
-            state: NY
-            zip: "10023"
-            lat: 40.7779
-            lon: -73.9825
-            pickup: true
-            delivery: true
-            source: API
-      required:
-        - phone
-        - name
-      properties:
-        customer_id:
-          type: integer
-          readOnly: true
-        phone:
-          type: integer
-        name:
-          type: string
-        apt:
-          type: string
-        external_customer_id:
-          type: string
-        phone_formatted:
-          type: string
-          readOnly: true
-        note:
-          type: string
-        address:
-          $ref: "#/components/schemas/Address"
+    # ─── Address ────────────────────────────────────────────────────────────
     Address:
       type: object
-      x-examples:
-        Example 1:
-          address_id: 940645
-          formatted: "2049 Broadway, New York, NY 10023"
-          street: 2049 Broadway
-          city: New York
-          state: NY
-          zip: "10023"
-          lat: 40.7779
-          lon: -73.9825
-          pickup: true
-          delivery: true
-          source: API
+      description: >-
+        Resolved address object. When creating or updating, provide one of
+        three formats: `address_id`, `street_address_1` + `city` + `state` + `zip`,
+        or reference via `customer_id` on the parent object.
       properties:
         address_id:
           type: integer
+          description: Unique address identifier. Can be used in place of full address fields.
         formatted:
           type: string
           readOnly: true
+          description: Full formatted address string
+          example: "2049 Broadway, New York, NY 10023"
+        house_number:
+          type: string
+          readOnly: true
+        street_address_1:
+          type: string
+          description: Street address (house number + street name)
+          example: "2049 Broadway"
         street:
           type: string
+          readOnly: true
         city:
           type: string
+          example: "New York"
         state:
           type: string
+          example: "NY"
         zip:
           type: string
+          example: "10023"
         lat:
           type: number
           readOnly: true
         lon:
           type: number
           readOnly: true
+        doorman:
+          type: boolean
+          readOnly: true
+          description: Whether the building has a doorman
+
+    # ─── Address Input (for requests) ───────────────────────────────────────
+    AddressInput:
+      description: >-
+        Provide address using one of two methods:
+        (1) `address_id` for a previously resolved address, or
+        (2) `street_address_1` + `city` + `state` + `zip` for a new address.
+      oneOf:
+        - type: object
+          title: By address_id
+          required:
+            - address_id
+          properties:
+            address_id:
+              type: integer
+              description: Existing address ID
+        - type: object
+          title: By street and zip
+          required:
+            - street_address_1
+            - city
+            - state
+            - zip
+          properties:
+            street_address_1:
+              type: string
+              example: "2049 Broadway"
+            city:
+              type: string
+              example: "New York"
+            state:
+              type: string
+              example: "NY"
+            zip:
+              type: string
+              example: "10023"
+
+    # ─── Timeframe ──────────────────────────────────────────────────────────
+    Timeframe:
+      type: object
+      properties:
+        service:
+          type: string
+          readOnly: true
+          enum:
+            - one_hour
+            - three_hour
+            - same_day
+          description: >-
+            Automatically determined service level based on the time window duration
+            and distance. `one_hour` = 1hr window, `three_hour` = 3hr window,
+            `same_day` = 2PM–7PM ET window.
+        start_time:
+          type: string
+          format: date-time
+          description: Start of delivery window (ISO 8601)
+        end_time:
+          type: string
+          format: date-time
+          description: End of delivery window (ISO 8601)
+        pickup_ready_by:
+          type: string
+          format: date-time
+          description: >-
+            Earliest time driver should arrive at pickup. Defaults to
+            `start_time` minus your account's pickup extension.
+        delivery_deadline:
+          type: string
+          format: date-time
+          description: >-
+            Latest time delivery should be completed. Defaults to
+            `end_time` plus your account's delivery extension.
+
+    # ─── Timeframe Input ────────────────────────────────────────────────────
+    TimeframeInput:
+      type: object
+      nullable: true
+      description: >-
+        Delivery time window. Set to `null` to clear the timeframe and move
+        the order to `pending_timeframe` status. If omitted entirely on
+        order creation, the order starts as `pending_timeframe`.
+      required:
+        - start_time
+        - end_time
+      properties:
+        start_time:
+          type: string
+          format: date-time
+          description: Must be in the future
+        end_time:
+          type: string
+          format: date-time
+          description: Must be after start_time
+        pickup_ready_by:
+          type: string
+          format: date-time
+          description: Optional. Must be at or before start_time.
+        delivery_deadline:
+          type: string
+          format: date-time
+          description: Optional. Must be at or after end_time.
+
+    # ─── Item Input ─────────────────────────────────────────────────────────
+    ItemInput:
+      type: object
+      description: >-
+        An item in the delivery. Either provide `size_category` at the
+        delivery level (all items use predefined dimensions), or provide
+        `length`/`width`/`height`/`weight` on each item (exact dimensions).
+        You cannot mix both — use one approach per order.
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          maxLength: 100
+          description: Description of the item
+          example: "bag"
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+        length:
+          type: integer
+          minimum: 1
+          description: Length in inches (required if using exact dimensions)
+        width:
+          type: integer
+          minimum: 1
+          description: Width in inches (required if using exact dimensions)
+        height:
+          type: integer
+          minimum: 1
+          description: Height in inches (required if using exact dimensions)
+        weight:
+          type: integer
+          minimum: 1
+          description: Weight in pounds (required if using exact dimensions)
+
+    # ─── Item Response ──────────────────────────────────────────────────────
+    ItemResponse:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: integer
+        length:
+          type: integer
+          nullable: true
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        weight:
+          type: integer
+          nullable: true
+        barcode:
+          type: string
+          description: Auto-generated barcode value for scanning
+        barcode_type:
+          type: string
+          enum: [CODE128, CODE39, EAN13, QRCODE, PDF417]
+          default: QRCODE
+        measurement:
+          type: string
+          description: Human-readable measurement string
+          example: '10lbs | 20" x 15" x 10"'
+        shipping_label:
+          type: string
+          nullable: true
+          description: ZPL format shipping label (only for orders with a timeframe)
+
+    # ─── Required Verification ──────────────────────────────────────────────
+    PickupVerification:
+      type: object
+      description: Proof of pickup requirements
+      properties:
+        picture:
+          type: boolean
+          default: false
+          description: Require photo at pickup
+        barcode:
+          type: boolean
+          default: false
+          description: Require barcode scan at pickup
+
+    DeliveryVerification:
+      type: object
+      description: Proof of delivery requirements
+      properties:
+        picture:
+          type: boolean
+          default: false
+          description: Require photo at delivery
+        barcode:
+          type: boolean
+          default: false
+          description: Require barcode scan at delivery
+        recipient:
+          type: boolean
+          default: false
+          description: Require recipient name confirmation
+        signature:
+          type: boolean
+          default: false
+          description: Require recipient signature
+        identification:
+          type: boolean
+          default: false
+          description: Require ID verification (e.g. age-restricted delivery)
+        pin:
+          type: boolean
+          default: false
+          description: Require PIN code from recipient
+
+    # ─── Uploaded Verification (response) ───────────────────────────────────
+    PickupUploadedVerification:
+      type: object
+      readOnly: true
+      properties:
+        picture:
+          type: string
+          nullable: true
+          description: URL to pickup photo
+        barcode:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: URLs to barcode scan photos
+
+    DeliveryUploadedVerification:
+      type: object
+      readOnly: true
+      properties:
+        picture:
+          type: string
+          nullable: true
+          description: URL to delivery photo
+        barcode:
+          type: array
+          items:
+            type: string
+            nullable: true
+          description: URLs to barcode scan photos
+        recipient:
+          type: string
+          nullable: true
+          description: Recipient name as entered by driver
+        signature:
+          type: string
+          nullable: true
+          description: URL to signature image
+        identification:
+          type: string
+          nullable: true
+        pin:
+          type: string
+          nullable: true
+
+    # ─── Fee Breakdown ──────────────────────────────────────────────────────
+    FeeBreakdown:
+      type: object
+      readOnly: true
+      description: Breakdown of the total fee in cents
+      properties:
+        previous_fee:
+          type: integer
+          description: Previous fee before this update (only on quote updates)
+        base:
+          type: integer
+          description: Base delivery fee in cents
+        mileage_surcharge:
+          type: integer
+          description: Additional cost based on distance in cents
+        item_surcharge:
+          type: integer
+          description: Additional cost based on item size category in cents
+        time_surcharge:
+          type: integer
+          description: Additional cost based on service level in cents
+
+    # ─── Measurement Summary ────────────────────────────────────────────────
+    MeasurementSummary:
+      type: object
+      readOnly: true
+      properties:
+        max_dimension:
+          type: number
+          description: Largest single dimension across all items (inches)
+        cubic_feet:
+          type: number
+          description: Total cubic feet of all items
+        total_weight:
+          type: number
+          description: Total weight of all items (lbs)
+        max_weight:
+          type: number
+          description: Heaviest single item (lbs)
+        total_quantity:
+          type: integer
+          description: Sum of all item quantities
+
+    # ─── Order Log Entry ────────────────────────────────────────────────────
+    OrderLogEntry:
+      type: object
+      readOnly: true
+      properties:
+        log_id:
+          type: integer
+        log:
+          type: string
+          enum:
+            - pending_timeframe
+            - processing
+            - assigned
+            - arrived_at_pickup
+            - picked_up
+            - arrived_at_delivery
+            - undeliverable
+            - delivered
+            - returned
+            - canceled
+            - not_ready
+            - incorrect_size
+            - timeslot_clicked
+            - timeslot_updated
+        by:
+          type: string
+          description: Who triggered the log (user, driver, admin, Customer, system)
+        datetime:
+          type: string
+          format: date-time
+        is_completed:
+          type: boolean
+
+    # ─── Rating ─────────────────────────────────────────────────────────────
+    Rating:
+      type: object
+      readOnly: true
+      properties:
+        rating:
+          type: boolean
+          description: Thumbs up (true) or thumbs down (false)
+        created_at:
+          type: string
+          format: date-time
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # REQUEST SCHEMAS
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ─── Quote Request ──────────────────────────────────────────────────────
+    QuoteRequest:
+      type: object
+      description: >-
+        Request body for creating a delivery quote. Provide pickup and delivery
+        locations using one of three methods: `customer_id`, `address.address_id`,
+        or full address fields.
+      properties:
         pickup:
-          type: boolean
-          readOnly: true
+          type: object
+          description: Pickup location — provide one of `customer_id`, `address.address_id`, or full address
+          properties:
+            customer_id:
+              type: integer
+              description: Existing customer ID (address resolved from customer record)
+            name:
+              type: string
+            phone:
+              type: string
+            access_code:
+              type: string
+            note:
+              type: string
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            required_verification:
+              $ref: "#/components/schemas/PickupVerification"
         delivery:
-          type: boolean
+          type: object
+          required:
+            - items
+          description: Delivery location and items
+          properties:
+            customer_id:
+              type: integer
+              description: Existing customer ID (address resolved from customer record)
+            name:
+              type: string
+            phone:
+              type: string
+            tip:
+              type: integer
+              minimum: 0
+              default: 0
+              description: Tip amount in cents
+            note:
+              type: string
+            apt:
+              type: string
+            external_order_id:
+              type: string
+              description: Your own order reference ID
+            access_code:
+              type: string
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            size_category:
+              type: string
+              enum: [xsmall, small, medium, large]
+              description: >-
+                Predefined size category. Use this OR provide exact dimensions
+                on each item — not both.
+            items:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ItemInput"
+            required_verification:
+              $ref: "#/components/schemas/DeliveryVerification"
+        timeframe:
+          $ref: "#/components/schemas/TimeframeInput"
+      required:
+        - delivery
+
+    # ─── Slots Request ──────────────────────────────────────────────────────
+    SlotsRequest:
+      type: object
+      description: Provide pickup and delivery locations to check slot availability
+      properties:
+        pickup:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+            address:
+              $ref: "#/components/schemas/AddressInput"
+        delivery:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+            address:
+              $ref: "#/components/schemas/AddressInput"
+
+    # ─── Order Create Request ───────────────────────────────────────────────
+    OrderCreateRequest:
+      type: object
+      description: >-
+        Request body for creating a new order. If `timeframe` is omitted,
+        the order starts in `pending_timeframe` status.
+      required:
+        - delivery
+      properties:
+        pickup:
+          type: object
+          description: >-
+            Pickup location. Provide `customer_id` (uses stored address/info),
+            or `name` + `phone` with `address`.
+          properties:
+            customer_id:
+              type: integer
+              description: Use an existing customer's stored address and info
+            name:
+              type: string
+              description: Required if not using customer_id
+            phone:
+              type: string
+              description: Required if not using customer_id
+            apt:
+              type: string
+            access_code:
+              type: string
+            note:
+              type: string
+              description: Instructions for the driver at pickup
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            required_verification:
+              $ref: "#/components/schemas/PickupVerification"
+        delivery:
+          type: object
+          required:
+            - items
+          description: >-
+            Delivery location and items. Provide `customer_id` or
+            `name` + `phone` with `address`.
+          properties:
+            customer_id:
+              type: integer
+            name:
+              type: string
+              description: Required if not using customer_id
+            phone:
+              type: string
+              description: Required if not using customer_id
+            tip:
+              type: integer
+              minimum: 0
+              default: 0
+              description: Tip amount in cents
+            note:
+              type: string
+              description: Instructions for the driver at delivery
+            apt:
+              type: string
+            external_order_id:
+              type: string
+              description: Your own order reference ID
+            access_code:
+              type: string
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            size_category:
+              type: string
+              enum: [xsmall, small, medium, large]
+              description: >-
+                Predefined size category. Use this OR provide exact dimensions
+                on each item — not both.
+            items:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ItemInput"
+            required_verification:
+              $ref: "#/components/schemas/DeliveryVerification"
+        timeframe:
+          $ref: "#/components/schemas/TimeframeInput"
+
+    # ─── Order Update Request ───────────────────────────────────────────────
+    OrderUpdateRequest:
+      type: object
+      description: >-
+        Only include the fields you want to change. Omitted fields remain
+        unchanged. Allowed fields depend on the current order status.
+      properties:
+        pickup:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+            name:
+              type: string
+            phone:
+              type: string
+            access_code:
+              type: string
+            note:
+              type: string
+            apt:
+              type: string
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            required_verification:
+              $ref: "#/components/schemas/PickupVerification"
+        delivery:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+            name:
+              type: string
+            phone:
+              type: string
+            tip:
+              type: integer
+              minimum: 0
+              description: Tip in cents
+            note:
+              type: string
+            apt:
+              type: string
+            access_code:
+              type: string
+            address:
+              $ref: "#/components/schemas/AddressInput"
+            size_category:
+              type: string
+              enum: [xsmall, small, medium, large]
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ItemInput"
+            required_verification:
+              $ref: "#/components/schemas/DeliveryVerification"
+        timeframe:
+          $ref: "#/components/schemas/TimeframeInput"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # RESPONSE SCHEMAS
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ─── Quote Response ─────────────────────────────────────────────────────
+    QuoteResponse:
+      type: object
+      description: Delivery quote with resolved addresses and fee breakdown
+      properties:
+        timeframe:
+          allOf:
+            - $ref: "#/components/schemas/Timeframe"
+          nullable: true
+          description: Validated timeframe (null if no timeframe was provided)
+        pickup:
+          type: object
+          properties:
+            address:
+              $ref: "#/components/schemas/Address"
+        delivery:
+          type: object
+          properties:
+            address:
+              $ref: "#/components/schemas/Address"
+            tip:
+              type: integer
+              description: Tip in cents
+            size_category:
+              type: string
+              enum: [xsmall, small, medium, large]
+              description: Determined size category
+            measurement_summary:
+              $ref: "#/components/schemas/MeasurementSummary"
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ItemResponse"
+        distance:
+          type: number
           readOnly: true
+          description: Distance between pickup and delivery in miles
+        fee:
+          type: integer
+          readOnly: true
+          description: Total delivery fee in cents
+        fee_breakdown:
+          $ref: "#/components/schemas/FeeBreakdown"
+
+    # ─── Order Detail Response ──────────────────────────────────────────────
+    OrderDetailResponse:
+      type: object
+      description: Full order details
+      properties:
+        order_id:
+          type: string
+          readOnly: true
+          description: 6-character unique order identifier
+          example: IL3YK3
+        external_order_id:
+          type: string
+          nullable: true
+          description: Your external order reference
+        status:
+          type: string
+          readOnly: true
+          enum:
+            - pending_timeframe
+            - processing
+            - assigned
+            - arrived_at_pickup
+            - picked_up
+            - arrived_at_delivery
+            - undeliverable
+            - delivered
+            - returned
+            - canceled
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_updated:
+          type: string
+          format: date-time
+          readOnly: true
+        fee:
+          type: integer
+          readOnly: true
+          description: Total delivery fee in cents
         source:
           type: string
           readOnly: true
-    Slots:
+          description: How the order was created (e.g. Portal, API, Shopify)
+        timeframe:
+          allOf:
+            - $ref: "#/components/schemas/Timeframe"
+          nullable: true
+        pickup:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+              readOnly: true
+            phone:
+              type: string
+            phone_formatted:
+              type: string
+              readOnly: true
+              example: "+1 (123) 456-7890"
+            name:
+              type: string
+            apt:
+              type: string
+            access_code:
+              type: string
+            external_customer_id:
+              type: string
+            note:
+              type: string
+              description: Driver instructions at pickup
+            pickup_time_estimated:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+            pickup_time_actual:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+            address:
+              $ref: "#/components/schemas/Address"
+            required_verification:
+              $ref: "#/components/schemas/PickupVerification"
+            uploaded_verification:
+              $ref: "#/components/schemas/PickupUploadedVerification"
+        delivery:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+              readOnly: true
+            phone:
+              type: string
+            phone_formatted:
+              type: string
+              readOnly: true
+            name:
+              type: string
+            apt:
+              type: string
+            access_code:
+              type: string
+            external_customer_id:
+              type: string
+            note:
+              type: string
+              description: Driver instructions at delivery
+            tip:
+              type: integer
+              description: Tip in cents
+            delivery_time_estimated:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+            delivery_time_actual:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+            address:
+              $ref: "#/components/schemas/Address"
+            size_category:
+              type: string
+              enum: [xsmall, small, medium, large]
+              readOnly: true
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ItemResponse"
+            required_verification:
+              $ref: "#/components/schemas/DeliveryVerification"
+            uploaded_verification:
+              $ref: "#/components/schemas/DeliveryUploadedVerification"
+        user:
+          type: object
+          readOnly: true
+          properties:
+            user_id:
+              type: integer
+            firstname:
+              type: string
+            email:
+              type: string
+        driver:
+          type: object
+          readOnly: true
+          properties:
+            driver_id:
+              type: integer
+              nullable: true
+            firstname:
+              type: string
+              nullable: true
+            phone:
+              type: string
+              nullable: true
+            location:
+              type: object
+              nullable: true
+              properties:
+                lat:
+                  type: number
+                lon:
+                  type: number
+            path:
+              type: array
+              description: Simplified driver path coordinates
+              items:
+                type: object
+                properties:
+                  lat:
+                    type: number
+                  lon:
+                    type: number
+                  datetime:
+                    type: string
+                    format: date-time
+        tracking_url:
+          type: string
+          readOnly: true
+          description: Public tracking URL for the delivery recipient
+          example: "https://track.dbx.delivery/IL3YK3"
+        distance:
+          type: number
+          readOnly: true
+          description: Distance between pickup and delivery in miles
+        fee_breakdown:
+          $ref: "#/components/schemas/FeeBreakdown"
+        logs:
+          type: array
+          readOnly: true
+          items:
+            $ref: "#/components/schemas/OrderLogEntry"
+        stops:
+          type: array
+          readOnly: true
+          description: Intermediate stops between pickup and delivery (driver's other stops)
+          items:
+            type: object
+            properties:
+              stop_number:
+                type: integer
+              status:
+                type: string
+                enum: [to_do, completed]
+              lat:
+                type: number
+              lon:
+                type: number
+        navigation_path:
+          type: array
+          readOnly: true
+          nullable: true
+          description: Turn-by-turn navigation path coordinates
+          items:
+            type: object
+            properties:
+              lat:
+                type: number
+              lon:
+                type: number
+        ratings:
+          type: object
+          readOnly: true
+          description: Ratings keyed by who left the rating
+          additionalProperties:
+            $ref: "#/components/schemas/Rating"
+
+    # ─── Slots Response ─────────────────────────────────────────────────────
+    SlotsResponse:
       type: array
+      description: >-
+        Available time slots grouped by service type. Each service may
+        have zero or more available slots depending on distance and time.
       items:
         type: object
         properties:
           service:
             type: string
+            enum: [one_hour, three_hour, same_day]
           slots:
             type: array
             items:
@@ -1527,65 +1912,94 @@ components:
               properties:
                 start_time:
                   type: string
+                  format: date-time
                 end_time:
                   type: string
-      x-examples:
-        Example 1:
-          - service: 1-hour
-            slots:
-              - start_time: "2025-03-01T14:00:00.000Z"
-                end_time: "2025-03-01T15:00:00.000Z"
-              - start_time: "2025-03-01T15:00:00.000Z"
-                end_time: "2025-03-01T16:00:00.000Z"
-              - start_time: "2025-03-01T16:00:00.000Z"
-                end_time: "2025-03-01T17:00:00.000Z"
-              - start_time: "2025-03-01T17:00:00.000Z"
-                end_time: "2025-03-01T18:00:00.000Z"
-              - start_time: "2025-03-01T18:00:00.000Z"
-                end_time: "2025-03-01T19:00:00.000Z"
-              - start_time: "2025-03-01T19:00:00.000Z"
-                end_time: "2025-03-01T20:00:00.000Z"
-              - start_time: "2025-03-01T20:00:00.000Z"
-                end_time: "2025-03-01T21:00:00.000Z"
-              - start_time: "2025-03-01T21:00:00.000Z"
-                end_time: "2025-03-01T22:00:00.000Z"
-              - start_time: "2025-03-01T22:00:00.000Z"
-                end_time: "2025-03-01T23:00:00.000Z"
-              - start_time: "2025-03-01T23:00:00.000Z"
-                end_time: "2025-03-02T00:00:00.000Z"
-          - service: 3-hour
-            slots:
-              - start_time: "2025-03-01T15:00:00.000Z"
-                end_time: "2025-03-01T18:00:00.000Z"
-              - start_time: "2025-03-01T16:00:00.000Z"
-                end_time: "2025-03-01T19:00:00.000Z"
-              - start_time: "2025-03-01T17:00:00.000Z"
-                end_time: "2025-03-01T20:00:00.000Z"
-              - start_time: "2025-03-01T18:00:00.000Z"
-                end_time: "2025-03-01T21:00:00.000Z"
-              - start_time: "2025-03-01T19:00:00.000Z"
-                end_time: "2025-03-01T22:00:00.000Z"
-              - start_time: "2025-03-01T20:00:00.000Z"
-                end_time: "2025-03-01T23:00:00.000Z"
-              - start_time: "2025-03-01T21:00:00.000Z"
-                end_time: "2025-03-02T00:00:00.000Z"
-              - start_time: "2025-03-01T22:00:00.000Z"
-                end_time: "2025-03-02T01:00:00.000Z"
-              - start_time: "2025-03-01T23:00:00.000Z"
-                end_time: "2025-03-02T02:00:00.000Z"
-          - service: same-day
-            slots:
-              - start_time: "2025-03-01T19:00:00.000Z"
-                end_time: "2025-03-02T00:00:00.000Z"
-    Webhook:
+                  format: date-time
+                pickup_ext:
+                  type: integer
+                  description: Pickup extension in minutes (from account settings)
+                delivery_ext:
+                  type: integer
+                  description: Delivery extension in minutes (from account settings)
+                pickup_ready_by:
+                  type: string
+                  format: date-time
+                  description: Computed earliest pickup time (start_time minus pickup_ext, clamped to store hours)
+                delivery_deadline:
+                  type: string
+                  format: date-time
+                  description: Computed latest delivery time (end_time plus delivery_ext, clamped to store hours)
+
+    # ─── Webhook Schemas ────────────────────────────────────────────────────
+    OrderWebhook:
       type: object
+      description: >-
+        Order lifecycle webhook. Contains the full order detail alongside
+        the event name.
       properties:
         event:
           type: string
+          enum:
+            - order.processing
+            - order.updated
+            - order.canceled
         order_id:
           type: string
         external_order_id:
           type: string
+          nullable: true
+        status:
+          type: string
+        pickup:
+          type: object
+          description: Same shape as OrderDetailResponse.pickup
+        delivery:
+          type: object
+          description: Same shape as OrderDetailResponse.delivery
+        timeframe:
+          $ref: "#/components/schemas/Timeframe"
+        created_at:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+        tracking_url:
+          type: string
+        fee:
+          type: integer
+        fee_breakdown:
+          $ref: "#/components/schemas/FeeBreakdown"
+        driver:
+          type: object
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderLogEntry"
+
+    DriverWebhook:
+      type: object
+      description: Driver event webhook
+      properties:
+        event:
+          type: string
+          enum:
+            - driver.assigned
+            - driver.location
+            - driver.pickup_next_stop
+            - driver.arrived_at_pickup
+            - driver.picked_up
+            - driver.delivery_next_stop
+            - driver.arrived_at_delivery
+            - driver.undeliverable
+            - driver.delivered
+            - driver.returned
+        order_id:
+          type: string
+        external_order_id:
+          type: string
+          nullable: true
         driver:
           type: object
           properties:
@@ -1604,165 +2018,153 @@ components:
                   type: string
         date_time:
           type: string
-      x-examples:
-        Example 1:
-          event: driver.location
-          order_id: 6QLV55
-          external_order_id: "12345"
-          driver:
-            name: John Doe
-            phone: "+12324231132"
-            vehicle: Toyota Highlander
-            location:
-              lat: "40.735073"
-              lon: "-73.994431"
-          date_time: "2024-04-12T03:59:05.000Z"
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  requestBodies: {}
+          format: date-time
+
+  # ─── Reusable Examples ──────────────────────────────────────────────────────
   examples:
-    quote:
-      value:
-        price: 3399.15
-        tip: 0
-        discount:
-          percentage: 15
-          original: 3999
-        timeframe:
-          service: 1-hour
-          start_time: "2025-03-22T15:00:00.000Z"
-          end_time: "2025-03-22T18:00:00.000Z"
-    order:
+    order_detail:
       value:
         order_id: IL3YK3
+        external_order_id: "1"
         status: processing
+        created_at: "2025-02-25T20:09:31.000Z"
+        last_updated: "2025-02-25T20:09:31.000Z"
+        fee: 1347
+        source: Portal
+        timeframe:
+          service: three_hour
+          start_time: "2025-03-22T15:00:00.000Z"
+          end_time: "2025-03-22T18:00:00.000Z"
+          pickup_ready_by: "2025-03-22T14:30:00.000Z"
+          delivery_deadline: "2025-03-22T18:30:00.000Z"
         pickup:
           customer_id: 134
-          phone: 1234567890
+          phone: "1234567890"
+          phone_formatted: "+1 (123) 456-7890"
           name: John Doe
-          apt: ground level
-          external_customer_id: "1"
-          phone_formatted: (123) 456-7890
-          note: Please pickup at front desk
-          eta: null
+          apt: "ground level"
+          access_code: ""
+          note: "Please pickup at front desk"
+          pickup_time_estimated: null
+          pickup_time_actual: null
           address:
             address_id: 940645
             formatted: "2049 Broadway, New York, NY 10023"
-            street: 2049 Broadway
-            city: New York
-            state: NY
+            house_number: "2049"
+            street_address_1: "2049 Broadway"
+            street: "Broadway"
+            city: "New York"
+            state: "NY"
             zip: "10023"
             lat: 40.7779
             lon: -73.9825
-            pickup: true
-            delivery: true
-            source: API
+            doorman: false
           required_verification:
             picture: true
+            barcode: false
           uploaded_verification:
-            picture: {}
+            picture: null
+            barcode: []
         delivery:
-          tip: 0
           customer_id: 133
-          phone: 1231231234
+          phone: "1231231234"
+          phone_formatted: "+1 (123) 123-1234"
           name: Jane Doe
-          apt: 47A
-          external_customer_id: "2"
-          phone_formatted: (123) 123-1234
-          note: Use service entrance on Jane St
-          eta: null
+          apt: "47A"
+          access_code: ""
+          note: "Use service entrance on Jane St"
+          tip: 200
+          delivery_time_estimated: null
+          delivery_time_actual: null
           address:
             address_id: 512381
             formatted: "14 N Moore St, New York, NY 10013"
-            street: 14 N Moore St
-            city: New York
-            state: NY
+            house_number: "14"
+            street_address_1: "14 N Moore St"
+            street: "N Moore St"
+            city: "New York"
+            state: "NY"
             zip: "10013"
             lat: 40.7197
             lon: -74.0066
-            pickup: true
-            delivery: true
-            source: API
-          external_order_id: "1"
+            doorman: true
+          size_category: medium
+          items:
+            - description: keg
+              quantity: 2
+              length: 20
+              width: 15
+              height: 10
+              weight: 10
+              barcode: "K9X2M1"
+              barcode_type: QRCODE
+              measurement: '10lbs | 20" x 15" x 10"'
+              shipping_label: "^XA^FO50,50^A0N,30,30^FD..."
+            - description: tripod
+              quantity: 1
+              length: 20
+              width: 15
+              height: 10
+              weight: 10
+              barcode: "T3Y7N4"
+              barcode_type: QRCODE
+              measurement: '10lbs | 20" x 15" x 10"'
+              shipping_label: "^XA^FO50,50^A0N,30,30^FD..."
           required_verification:
             picture: true
+            barcode: false
             recipient: true
             signature: true
+            identification: false
+            pin: false
           uploaded_verification:
-            picture: {}
-            recipient: {}
-            signature: {}
-          items:
-            max_weight: 10
-            max_dimension: 20
-            total_quantity: 3
-            total_weight: 20
-            cubic_feet: 1.74
-            exact: true
-            size: medium
-            description: Fits in backseat
-            additional: 700
-            items:
-              - description: keg
-                quantity: 2
-                length: 20
-                width: 15
-                height: 10
-                weight: 10
-                measurement: 10lbs | 20” x 15” x 10”
-                size: medium
-              - description: tripod
-                quantity: 1
-                length: 20
-                width: 15
-                height: 10
-                weight: 10
-                measurement: 10lbs | 20” x 15” x 10”
-                size: medium
-        timeframe:
-          service: 3-hour
-          start_time: "2025-03-22T15:00:00.000Z"
-          end_time: "2025-03-22T18:00:00.000Z"
-        created_at: "2025-02-25T20:09:31.000Z"
-        last_updated: "2025-02-25T20:09:31.000Z"
-        pickup_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJwaWNrdXAiLCJpYXQiOjE3NDA1ODcwNTAsImV4cCI6MTc3NjU4NzA1MH0.7O9gMQ2_GEN5mrPH4aTezOW_U4Uu6vLRiZuzhmgWKvw"
-        delivery_tracking_url: "https://track.dbx.delivery/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmRlcl9pZCI6IklMM1lLMyIsInR5cGUiOiJkZWxpdmVyeSIsImlhdCI6MTc0MDU4NzA1MCwiZXhwIjoxNzc2NTg3MDUwfQ.dqADoalSGreamn8yDs8ke_0yJl4AEdmf6cB7denFWuI"
-        price: 1347
-        driver: {}
+            picture: null
+            barcode: []
+            recipient: null
+            signature: null
+            identification: null
+            pin: null
+        user:
+          user_id: 1
+          firstname: "Store Owner"
+          email: "store@example.com"
+        driver:
+          driver_id: null
+          firstname: null
+          phone: null
+          location: null
+          path: []
+        tracking_url: "https://track.dbx.delivery/IL3YK3"
+        distance: 4.72
+        fee_breakdown:
+          base: 699
+          mileage_surcharge: 136
+          item_surcharge: 400
+          time_surcharge: 150
         logs:
-          - log: delivered
-            datetime:
-              start: "2025-03-22T15:30:00.000Z"
-              end: "2025-03-22T18:05:00.000Z"
-            is_completed: false
-          - log: arrived_at_delivery
-            datetime:
-              start: "2025-03-22T15:30:00.000Z"
-              end: "2025-03-22T18:00:00.000Z"
-            is_completed: false
-          - log: picked_up
-            datetime:
-              start: "2025-03-22T14:30:00.000Z"
-              end: "2025-03-22T17:30:00.000Z"
-            is_completed: false
-          - log: arrived_at_pickup
-            datetime:
-              start: "2025-03-22T14:30:00.000Z"
-              end: "2025-03-22T17:30:00.000Z"
-            is_completed: false
-          - log: assigned
-            datetime:
-              start: "2025-03-22T14:20:00.000Z"
-              end: "2025-03-22T17:30:00.000Z"
-            is_completed: false
-          - log_id: 23
-            log: processing
+          - log: processing
             by: user
             datetime: "2025-02-25T20:09:31.000Z"
             is_completed: true
+        stops: []
+        navigation_path: null
+        ratings: {}
+
+    driver_webhook:
+      value:
+        event: driver.assigned
+        order_id: 6QLV55
+        external_order_id: "12345"
+        driver:
+          name: John Doe
+          phone: "+12324231132"
+          vehicle: Toyota Highlander
+          location:
+            lat: "40.735073"
+            lon: "-73.994431"
+        date_time: "2024-04-12T03:59:05.000Z"
+
+  # ─── Reusable Responses ─────────────────────────────────────────────────────
   responses:
     404-not_found:
       description: not_found
@@ -1770,11 +2172,6 @@ components:
         application/json:
           schema:
             type: object
-            x-examples:
-              Example 1:
-                code: invalid_delivery_parameters
-                error: outside_of_delivery_time.
-                messege: Ready by time outside of delivery hours.
             properties:
               code:
                 type: string
@@ -1788,25 +2185,13 @@ components:
                 code: not_found
                 message: The requested resource cannot be found.
                 reason: The requested order does not exist.
+
     422-invalid_params:
       description: invalid_params
       content:
         application/json:
           schema:
             type: object
-            x-examples:
-              Example 1:
-                code: invalid_params
-                message: One or more fields couldn't be validated.
-                field_error:
-                  - field: deliver_to
-                    error: Invalid deliver to value.
-                  - field: name
-                    error: Minimum character length for  name is 2.
-                  - field: phone
-                    error: "Invalid phone number format. Required format: “+xxxxxxxxxx“."
-                  - field: item2
-                    error: "Invalid item value. Allowed items: “box”, “heavy-box”, “large-box”, “1-hander”, “2-hander”, “plant”, “bag”, “letter”, “garment”, “other”."
             properties:
               code:
                 type: string
@@ -1820,27 +2205,24 @@ components:
                 code: invalid_params
                 message: One or more values are not valid.
                 reason: Invalid size or item dimensions.
+
     500-internal_server_error:
       description: internal_server_error
       content:
         application/json:
           schema:
             type: object
-            x-examples:
-              Example 1:
-                code: invalid_delivery_parameters
-                error: outside_of_delivery_zone
-                messege: Address outside of delivery zone.
             properties:
               code:
                 type: string
-              messege:
+              message:
                 type: string
           examples:
             "":
               value:
                 code: internal_server_error
-                message: "DBX expierenced an internal service error, please try again later."
+                message: "DBX experienced an internal service error, please try again later."
+
     401-authentication_error:
       description: authentication_error
       content:
@@ -1852,15 +2234,12 @@ components:
                 type: string
               message:
                 type: string
-            x-examples:
-              Example 1:
-                code: authorization_failed
-                message: Invalid authorization token.
           examples:
             "":
               value:
                 code: authentication_error
                 message: Access denied for bearer token provided.
+
     400-missing_params:
       description: missing_params
       content:
@@ -1874,16 +2253,12 @@ components:
                 type: string
               field:
                 type: string
-            x-examples:
-              Example 1:
-                code: missing_params
-                message: One or more required values are missing.
-                field: bearer_token
           examples:
             "":
               value:
                 code: missing_params
                 message: One or more required values are missing.
                 field: bearer_token
+
 security:
   - bearerAuth: []
